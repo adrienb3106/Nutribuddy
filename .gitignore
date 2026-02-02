@@ -1,4 +1,4 @@
-# Python
+﻿# Python
 __pycache__/
 *.py[cod]
 *.pyo
@@ -38,3 +38,7 @@ Thumbs.db
 
 # Docker
 *.pid
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
