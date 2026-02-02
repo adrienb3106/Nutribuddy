@@ -16,6 +16,9 @@ class FoodItemFilter(filters.FilterSet):
     fat_min = filters.NumberFilter(field_name="fat_g_100g", lookup_expr="gte")
     fat_max = filters.NumberFilter(field_name="fat_g_100g", lookup_expr="lte")
 
+    irritability_min = filters.NumberFilter(field_name="irritability_level", lookup_expr="gte")
+    irritability_max = filters.NumberFilter(field_name="irritability_level", lookup_expr="lte")
+
     class Meta:
         model = FoodItem
         fields = [
@@ -25,4 +28,5 @@ class FoodItemFilter(filters.FilterSet):
             "pescetarian",
             "gluten_free",
             "lactose_free",
+            "irritability_level",
         ]
