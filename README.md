@@ -51,17 +51,16 @@ curl "http://localhost:8000/api/foods/?search=haricot"
 curl "http://localhost:8000/api/foods/?vegan=true&kcal_max=200"
 ```
 
-## What’s already set up
-- Docker Compose with `web` + `db` + `backup`
-- Dockerfile + `requirements.txt`
-- Django project with `foods` app
-- FoodItem model (macros + optional micros + compatibilities + CIQUAL source fields)
-- Admin list/search/filters
-- REST API (CRUD)
-- Filters, search, ordering, pagination
-- CIQUAL import command
-- Auto-tag command for compatibilities
-- Automated backups (daily pg_dump + retention)
+## Environment variables
+- `DJANGO_SECRET_KEY`
+- `DJANGO_DEBUG`
+- `DJANGO_ALLOWED_HOSTS`
+- `POSTGRES_DB`
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
+- `POSTGRES_HOST`
+- `POSTGRES_PORT`
+- `BACKUP_RETAIN_DAYS`
 
 ## Backups (Step 8)
 A `backup` service runs `pg_dump` once per day and keeps the last N days.
@@ -73,5 +72,34 @@ You can override retention in `.env`:
 ```
 BACKUP_RETAIN_DAYS=7
 ```
+
+### Restore (example)
+List backups:
+```bash
+docker volume ls
+```
+
+To restore, copy a dump out of the `backups` volume, then run:
+```bash
+psql -h localhost -U nutribuddy -d nutribuddy -f backup_YYYYMMDD_HHMMSS.sql
+```
+
+## Tests (Step 9)
+```bash
+docker compose exec web python manage.py test foods
+```
+
+## What’s already set up
+- Docker Compose with `web` + `db` + `backup`
+- Dockerfile + `requirements.txt`
+- Django project with `foods` app
+- FoodItem model (macros + optional micros + compatibilities + CIQUAL source fields)
+- Admin list/search/filters
+- REST API (CRUD)
+- Filters, search, ordering, pagination
+- CIQUAL import command
+- Auto-tag command for compatibilities
+- Automated backups (daily pg_dump + retention)
+- API tests (create/filter/search/pagination/ordering)
 
 Next steps are documented in `context.md`.
