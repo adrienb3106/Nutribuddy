@@ -1,4 +1,4 @@
-# Nutribuddy
+﻿# Nutribuddy
 
 Django backend (REST API) for a food app. Frontend is out of scope for now.
 
@@ -32,13 +32,46 @@ docker compose exec web python manage.py createsuperuser
 docker compose exec web python manage.py import_ciqual --path "data/Table Ciqual 2025_FR_2025_11_03.xls"
 ```
 
-### 6) Open admin
+### 6) Auto-tag compatibilities (optional)
+```bash
+docker compose exec web python manage.py tag_compatibilities --dry-run
+docker compose exec web python manage.py tag_compatibilities
+```
+
+### 7) Open admin
 Visit `http://localhost:8000/admin/`.
 
-## What�s already set up
-- Docker Compose with `web` + `db`
+### 8) API
+Base URL: `http://localhost:8000/api/`
+
+Examples:
+```bash
+curl "http://localhost:8000/api/foods/?page=1"
+curl "http://localhost:8000/api/foods/?search=haricot"
+curl "http://localhost:8000/api/foods/?vegan=true&kcal_max=200"
+```
+
+## What’s already set up
+- Docker Compose with `web` + `db` + `backup`
 - Dockerfile + `requirements.txt`
 - Django project with `foods` app
+- FoodItem model (macros + optional micros + compatibilities + CIQUAL source fields)
+- Admin list/search/filters
+- REST API (CRUD)
+- Filters, search, ordering, pagination
 - CIQUAL import command
+- Auto-tag command for compatibilities
+- Automated backups (daily pg_dump + retention)
+
+## Backups (Step 8)
+A `backup` service runs `pg_dump` once per day and keeps the last N days.
+
+- Dumps are stored in a Docker volume named `backups`
+- Retention is controlled by `BACKUP_RETAIN_DAYS` (default: 7)
+
+You can override retention in `.env`:
+```
+BACKUP_RETAIN_DAYS=7
+```
 
 Next steps are documented in `context.md`.
