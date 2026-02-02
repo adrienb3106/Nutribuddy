@@ -1,3 +1,31 @@
 from django.contrib import admin
 
-# Register your models here.
+from .models import FoodItem
+
+
+@admin.register(FoodItem)
+class FoodItemAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "food_type",
+        "kcal_100g",
+        "protein_g_100g",
+        "carbs_g_100g",
+        "fat_g_100g",
+        "vegan",
+        "vegetarian",
+        "pescetarian",
+        "gluten_free",
+        "lactose_free",
+    )
+    search_fields = ("name", "barcode", "source_code")
+    list_filter = (
+        "food_type",
+        "vegan",
+        "vegetarian",
+        "pescetarian",
+        "gluten_free",
+        "lactose_free",
+        "irritability_level",
+    )
+    ordering = ("name",)
