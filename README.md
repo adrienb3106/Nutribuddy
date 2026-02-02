@@ -27,13 +27,18 @@ docker compose exec web python manage.py migrate
 docker compose exec web python manage.py createsuperuser
 ```
 
-### 5) Open admin
+### 5) Import CIQUAL data (optional)
+```bash
+docker compose exec web python manage.py import_ciqual --path "data/Table Ciqual 2025_FR_2025_11_03.xls"
+```
+
+### 6) Open admin
 Visit `http://localhost:8000/admin/`.
 
-## What’s already set up (Step 1)
-- `docker-compose.yml` with `web` + `db`
-- `Dockerfile`
-- `requirements.txt` with Django/DRF/django-filter/psycopg
-- Minimal Django project (`manage.py`, `nutribuddy/` settings/urls/asgi/wsgi)
+## What’s already set up
+- Docker Compose with `web` + `db`
+- Dockerfile + `requirements.txt`
+- Django project with `foods` app
+- CIQUAL import command
 
 Next steps are documented in `context.md`.
