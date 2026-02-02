@@ -22,5 +22,17 @@ services:
     ports:
       - "5432:5432"
 
+  backup:
+    image: postgres:16
+    depends_on:
+      - db
+    env_file:
+      - .env
+    volumes:
+      - backups:/backups
+      - ./scripts/backup.sh:/backup.sh:ro
+    entrypoint: ["bash", "/backup.sh"]
+
 volumes:
   postgres_data:
+  backups:
