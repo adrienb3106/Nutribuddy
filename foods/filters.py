@@ -22,7 +22,7 @@ class FoodItemFilter(filters.FilterSet):
     class Meta:
         model = FoodItem
         fields = [
-            "food_type",
+            "source",
             "vegan",
             "vegetarian",
             "pescetarian",

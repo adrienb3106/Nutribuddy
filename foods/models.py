@@ -3,13 +3,13 @@ from django.db import models
 
 
 class FoodItem(models.Model):
-    class FoodType(models.TextChoices):
-        DE_BASE = "de_base", "De base"
-        CUISINE = "cuisine", "Cuisine"
-        TRANSFORME = "transforme", "Transforme"
+    class Source(models.TextChoices):
+        CIQUAL = "ciqual", "Ciqual"
+        OPENFOODFACTS = "openfoodfacts", "Open Food Facts"
+        MANUAL = "manual", "Manual"
 
     name = models.CharField(max_length=255)
-    food_type = models.CharField(max_length=20, choices=FoodType.choices, default=FoodType.DE_BASE)
+    source = models.CharField(max_length=32, choices=Source.choices, default=Source.MANUAL)
 
     kcal_100g = models.DecimalField(
         max_digits=7,

@@ -13,7 +13,7 @@ class FoodItemApiTests(APITestCase):
     def _create_food(self, **overrides):
         data = {
             "name": "Test Food",
-            "food_type": FoodItem.FoodType.DE_BASE,
+            "source": FoodItem.Source.CIQUAL,
             "kcal_100g": 100,
             "protein_g_100g": 5,
             "carbs_g_100g": 10,
@@ -31,7 +31,7 @@ class FoodItemApiTests(APITestCase):
     def test_create_food_item(self):
         payload = {
             "name": "Carrot",
-            "food_type": FoodItem.FoodType.DE_BASE,
+            "source": FoodItem.Source.CIQUAL,
             "kcal_100g": 41,
             "protein_g_100g": 0.9,
             "carbs_g_100g": 9.6,

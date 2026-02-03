@@ -64,6 +64,109 @@ NAME_GLUTEN_FREE_FALSE = {
     "triticale",
 }
 
+NAME_NON_VEGETARIAN = {
+    "poisson",
+    "saumon",
+    "thon",
+    "sardine",
+    "maquereau",
+    "truite",
+    "cabillaud",
+    "morue",
+    "hareng",
+    "anchois",
+    "surimi",
+    "crevette",
+    "crustace",
+    "crustaces",
+    "moule",
+    "moules",
+    "huitre",
+    "huitres",
+    "calamar",
+    "calamars",
+    "encornet",
+    "seiche",
+    "poulpe",
+    "viande",
+    "boeuf",
+    "boeufs",
+    "bœuf",
+    "porc",
+    "cochon",
+    "jambon",
+    "lard",
+    "bacon",
+    "poulet",
+    "dinde",
+    "canard",
+    "agneau",
+    "mouton",
+    "veau",
+    "lapin",
+    "gibier",
+    "steak",
+    "saucisse",
+    "saucisson",
+    "charcuterie",
+    "foie",
+    "abats",
+    "poitrine",
+}
+
+NAME_NON_VEGAN = NAME_NON_VEGETARIAN | {
+    "oeuf",
+    "oeufs",
+    "œuf",
+    "œufs",
+    "lait",
+    "lactose",
+    "fromage",
+    "beurre",
+    "creme",
+    "crème",
+    "yaourt",
+    "yogourt",
+    "yogourt",
+    "yogurt",
+    "miel",
+    "caseine",
+    "caséine",
+    "lactoserum",
+    "lactosérum",
+    "petit_lait",
+    "whey",
+    "gelatine",
+    "gélatine",
+}
+
+NAME_NON_PESCE = {
+    "viande",
+    "boeuf",
+    "boeufs",
+    "bœuf",
+    "porc",
+    "cochon",
+    "jambon",
+    "lard",
+    "bacon",
+    "poulet",
+    "dinde",
+    "canard",
+    "agneau",
+    "mouton",
+    "veau",
+    "lapin",
+    "gibier",
+    "steak",
+    "saucisse",
+    "saucisson",
+    "charcuterie",
+    "foie",
+    "abats",
+    "poitrine",
+}
+
 
 def _normalize(text: str) -> str:
     text = text.lower().replace("\n", " ").replace("\xa0", " ")
@@ -121,6 +224,12 @@ def _apply_name_overrides(item: FoodItem) -> None:
     if not item.name:
         return
     name = _normalize_plain(item.name)
+    if any(token in name for token in NAME_NON_VEGAN):
+        item.vegan = False
+    if any(token in name for token in NAME_NON_VEGETARIAN):
+        item.vegetarian = False
+    if any(token in name for token in NAME_NON_PESCE):
+        item.pescetarian = False
     if any(token in name for token in NAME_GLUTEN_FREE_FALSE):
         item.gluten_free = False
     elif any(token in name for token in NAME_GLUTEN_FREE_TRUE):
@@ -139,12 +248,18 @@ class Command(BaseCommand):
             action="store_true",
             help="Only update rows where flags are all False",
         )
+        parser.add_argument(
+            "--show-skipped",
+            action="store_true",
+            help="Print skipped rows with reason",
+        )
 
     def handle(self, *args, **options):
         group_rules = _load_rules(options.get("rules"))
         dry_run = options["dry_run"]
         limit = options["limit"]
         only_if_default = options["only_if_default"]
+        show_skipped = options["show_skipped"]
 
         qs = FoodItem.objects.all().only(
             "id",
@@ -162,10 +277,13 @@ class Command(BaseCommand):
 
         updated = 0
         skipped = 0
+        skipped_rows = []
 
         with transaction.atomic():
             for item in qs:
                 if not item.group_name:
+                    if show_skipped:
+                        skipped_rows.append((item.id, item.name, "missing_group_name"))
                     skipped += 1
                     continue
 
@@ -176,6 +294,8 @@ class Command(BaseCommand):
                     or item.gluten_free
                     or item.lactose_free
                 ):
+                    if show_skipped:
+                        skipped_rows.append((item.id, item.name, "already_tagged"))
                     skipped += 1
                     continue
 
@@ -190,6 +310,8 @@ class Command(BaseCommand):
                     subgroup_rule = subgroup_map.get(subgroup_key)
 
                 if not rule and not subgroup_rule:
+                    if show_skipped:
+                        skipped_rows.append((item.id, item.name, "no_rule_match"))
                     skipped += 1
                     continue
 
@@ -198,8 +320,7 @@ class Command(BaseCommand):
                 if subgroup_rule:
                     _apply_rule(item, subgroup_rule)
 
-                if group_key == "produits_cerealiers":
-                    _apply_name_overrides(item)
+                _apply_name_overrides(item)
 
                 item.save(
                     update_fields=[
@@ -213,8 +334,14 @@ class Command(BaseCommand):
                 updated += 1
 
             if dry_run:
+                if show_skipped and skipped_rows:
+                    for row_id, name, reason in skipped_rows:
+                        self.stdout.write(f"[skipped] id={row_id} reason={reason} name={name}")
                 raise CommandError(
                     f"Dry run requested. updated={updated}, skipped={skipped}"
                 )
 
+        if show_skipped and skipped_rows:
+            for row_id, name, reason in skipped_rows:
+                self.stdout.write(f"[skipped] id={row_id} reason={reason} name={name}")
         self.stdout.write(self.style.SUCCESS(f"Tagging done. updated={updated}, skipped={skipped}"))

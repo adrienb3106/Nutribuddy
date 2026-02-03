@@ -142,6 +142,8 @@ class Command(BaseCommand):
                 if not data.get("fat_g_100g"):
                     data["fat_g_100g"] = Decimal("0")
 
+                data["source"] = FoodItem.Source.CIQUAL
+
                 source_code = data.get("source_code")
                 if source_code and update_existing:
                     obj, was_created = FoodItem.objects.update_or_create(
