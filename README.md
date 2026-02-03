@@ -32,10 +32,36 @@ docker compose exec web python manage.py createsuperuser
 docker compose exec web python manage.py import_ciqual --path "data/Table Ciqual 2025_FR_2025_11_03.xls"
 ```
 
+### 5b) Export Open Food Facts (food + France + minimal fields)
+This streams the `.jsonl.gz` and writes a smaller `.jsonl.gz` with only the fields we keep.
+```bash
+python scripts/prepare_openfoodfacts_minimal.py \
+  --input "data/openfoodfacts-products.jsonl.gz" \
+  --output "data/openfoodfacts-products.fr.food.min.jsonl.gz"
+```
+
+### 5c) Import minimal Open Food Facts into DB (optional, heavy)
+```bash
+docker compose exec web python manage.py import_openfoodfacts_minimal \
+  --path "data/openfoodfacts-products.fr.food.min.jsonl.gz"
+```
+
+To commit by batches (keeps progress on Ctrl-C):
+```bash
+docker compose exec web python manage.py import_openfoodfacts_minimal \
+  --path "data/openfoodfacts-products.fr.food.min.jsonl.gz" \
+  --commit-every 10000
+```
+
 ### 6) Auto-tag compatibilities (optional)
 ```bash
 docker compose exec web python manage.py tag_compatibilities --dry-run
 docker compose exec web python manage.py tag_compatibilities
+```
+
+### 6b) Auto-tag Open Food Facts compatibilities (ingredients + tags)
+```bash
+docker compose exec web python manage.py tag_openfoodfacts_compatibilities --log-every 10000
 ```
 
 ### 7) Open admin
