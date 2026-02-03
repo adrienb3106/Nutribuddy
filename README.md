@@ -2,82 +2,152 @@
 
 Django backend (REST API) + Next.js frontend for a food app.
 
-## Conventions
-- DB and field names: explicit snake_case (`kcal_100g`, `protein_g_100g`, etc.)
-- Nutrition values are stored per 100 g (V1)
+**Overview**
+Nutribuddy provides a clean API to store foods/products, search/filter by nutrition, and tag dietary compatibilities. The V1 focuses on simple, evolvable modeling and a working Docker stack.
 
-## Backend quick start (V1)
-The project is wired for Docker + PostgreSQL + Django + Next.js frontend.
+**Prerequisites**
+- Docker Desktop (Compose v2)
+- PowerShell for the one-command deploy script
+- Optional: Node 18+ if you want to run the frontend outside Docker
 
-### 1) Configure env
+**Configuration**
 Copy `.env.example` to `.env` and edit values if needed.
 
-### 2) Build and run
+Variables used:
+- `DJANGO_SECRET_KEY` Secret key for Django
+- `DJANGO_DEBUG` `1` for dev, `0` for production
+- `DJANGO_ALLOWED_HOSTS` Comma-separated hosts
+- `POSTGRES_DB` Database name
+- `POSTGRES_USER` Database user
+- `POSTGRES_PASSWORD` Database password
+- `POSTGRES_HOST` Database host (Docker service name)
+- `POSTGRES_PORT` Database port
+- `BACKUP_RETAIN_DAYS` Backup retention window
+- `CORS_ALLOWED_ORIGINS` Allowed CORS origins
+
+**One-Command Deploy**
+This script builds containers, starts services, waits for Postgres, runs migrations, imports CIQUAL + Open Food Facts minimal, tags compatibilities, and prints frontend/backend URLs.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1
+```
+
+Defaults used by the script:
+- CIQUAL file: `data/Table Ciqual 2025_FR_2025_11_03.xls`
+- Open Food Facts minimal file: `data/openfoodfacts-products.fr.food.min.jsonl.gz`
+
+Common options:
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1 `
+  -CiqualPath "data/Table Ciqual 2025_FR_2025_11_03.xls" `
+  -OffPath "data/openfoodfacts-products.fr.food.min.jsonl.gz" `
+  -OffCommitEvery 10000 `
+  -OffLogEvery 10000
+```
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1 -SkipOff
+```
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1 -SkipTags
+```
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1 -OnlyIfDefault
+```
+
+**Manual Start (Step-by-Step)**
+1. Build and start
 ```bash
 docker compose up --build
 ```
-
-### 3) Run migrations
+2. Run migrations
 ```bash
 docker compose exec web python manage.py migrate
 ```
-
-### 4) Create an admin user
+3. Create admin user
 ```bash
 docker compose exec web python manage.py createsuperuser
 ```
 
-### 5) Import CIQUAL data (optional)
+**Data Sources**
+CIQUAL is used for base food items. Open Food Facts (OFF) provides packaged products. OFF imports are heavier and optional.
+
+CIQUAL import:
 ```bash
 docker compose exec web python manage.py import_ciqual --path "data/Table Ciqual 2025_FR_2025_11_03.xls"
 ```
 
-### 5b) Export Open Food Facts (food + France + minimal fields)
-This streams the `.jsonl.gz` and writes a smaller `.jsonl.gz` with only the fields we keep.
+Open Food Facts minimal export (from a full OFF dump):
 ```bash
 python scripts/prepare_openfoodfacts_minimal.py \
   --input "data/openfoodfacts-products.jsonl.gz" \
   --output "data/openfoodfacts-products.fr.food.min.jsonl.gz"
 ```
 
-### 5c) Import minimal Open Food Facts into DB (optional, heavy)
+Open Food Facts minimal import:
 ```bash
 docker compose exec web python manage.py import_openfoodfacts_minimal \
   --path "data/openfoodfacts-products.fr.food.min.jsonl.gz"
 ```
 
-To commit by batches (keeps progress on Ctrl-C):
+If the import is heavy, commit in batches and log progress:
 ```bash
 docker compose exec web python manage.py import_openfoodfacts_minimal \
   --path "data/openfoodfacts-products.fr.food.min.jsonl.gz" \
-  --commit-every 10000
+  --commit-every 10000 \
+  --log-every 10000
 ```
 
-### 6) Auto-tag compatibilities (optional)
+**Auto-Tag Compatibilities**
+Two commands exist and serve different data sources.
+
+CIQUAL tagging (from group/subgroup names):
 ```bash
-docker compose exec web python manage.py tag_compatibilities --dry-run
 docker compose exec web python manage.py tag_compatibilities
 ```
 
-### 6b) Auto-tag Open Food Facts compatibilities (ingredients + tags)
+Open Food Facts tagging (ingredients + labels + allergens):
 ```bash
 docker compose exec web python manage.py tag_openfoodfacts_compatibilities --log-every 10000
 ```
 
-### 7) Open admin
-Visit `http://localhost:8000/admin/`.
+Only tag rows that are still at default values:
+```bash
+docker compose exec web python manage.py tag_compatibilities --only-if-default
+```
+```bash
+docker compose exec web python manage.py tag_openfoodfacts_compatibilities --only-if-default
+```
 
-### 8) API
-Base URL: `http://localhost:8000/api/`
+**Backend URLs**
+- API root: `http://localhost:8000/api/`
+- Admin: `http://localhost:8000/admin/`
+
+**API Endpoints (V1)**
+- `GET /api/foods/`
+- `GET /api/foods/{id}/`
+- `POST /api/foods/`
+- `PATCH /api/foods/{id}/`
+- `DELETE /api/foods/{id}/`
 
 Examples:
 ```bash
 curl "http://localhost:8000/api/foods/?page=1"
+```
+```bash
 curl "http://localhost:8000/api/foods/?search=haricot"
+```
+```bash
 curl "http://localhost:8000/api/foods/?vegan=true&kcal_max=200"
 ```
 
-### 9) Auth (JWT)
+Filters supported:
+- `search` on `name` (and barcode when relevant)
+- `food_type` and compatibilities (`vegan`, `vegetarian`, `pescetarian`, `gluten_free`, `lactose_free`)
+- `kcal_min` and `kcal_max`
+- `protein_min`, `protein_max`, `carbs_min`, `carbs_max`, `fat_min`, `fat_max`
+- `barcode` exact match
+
+**Auth (JWT)**
 Register:
 ```bash
 curl -X POST "http://localhost:8000/api/auth/register/" \
@@ -99,14 +169,11 @@ curl -X POST "http://localhost:8000/api/auth/token/refresh/" \
   -d '{"refresh":"<refresh_token>"}'
 ```
 
-### 10) Profile (dietary restrictions)
-Get profile:
+Profile:
 ```bash
 curl "http://localhost:8000/api/auth/profile/" \
   -H "Authorization: Bearer <access_token>"
 ```
-
-Update profile:
 ```bash
 curl -X PATCH "http://localhost:8000/api/auth/profile/" \
   -H "Content-Type: application/json" \
@@ -114,76 +181,92 @@ curl -X PATCH "http://localhost:8000/api/auth/profile/" \
   -d '{"vegan":true,"gluten_free":true,"lactose_free":true,"irritability_level":1}'
 ```
 
-## Frontend (Next.js)
-The frontend lives in `frontend/`.
+**Frontend (Next.js)**
+Docker (recommended):
+```bash
+docker compose up --build
+```
+Frontend URL: `http://localhost:3000/`
 
-### Option A: Docker (recommended)
-`docker compose up --build` also starts the frontend on `http://localhost:3000/`.
-
-If you want to override the API base URL, copy `frontend/.env.local.example` to `frontend/.env.local`.
-
-### Option B: Local dev (without Docker)
+Local dev (without Docker):
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Then open `http://localhost:3000/`.
 
-## Environment variables
-- `DJANGO_SECRET_KEY`
-- `DJANGO_DEBUG`
-- `DJANGO_ALLOWED_HOSTS`
-- `POSTGRES_DB`
-- `POSTGRES_USER`
-- `POSTGRES_PASSWORD`
-- `POSTGRES_HOST`
-- `POSTGRES_PORT`
-- `BACKUP_RETAIN_DAYS`
-- `CORS_ALLOWED_ORIGINS`
+If you need a custom API base URL, copy `frontend/.env.local.example` to `frontend/.env.local`.
 
-## Backups (Step 8)
+**Backups**
 A `backup` service runs `pg_dump` once per day and keeps the last N days.
 
-- Dumps are stored in a Docker volume named `backups`
-- Retention is controlled by `BACKUP_RETAIN_DAYS` (default: 7)
+Details:
+- Backups are stored in a Docker volume named `backups`.
+- Retention is controlled by `BACKUP_RETAIN_DAYS` (default: 7).
 
-You can override retention in `.env`:
-```
-BACKUP_RETAIN_DAYS=7
-```
-
-### Restore (example)
-List backups:
+Restore example:
 ```bash
 docker volume ls
 ```
-
-To restore, copy a dump out of the `backups` volume, then run:
 ```bash
 psql -h localhost -U nutribuddy -d nutribuddy -f backup_YYYYMMDD_HHMMSS.sql
 ```
 
-## Tests (Step 9)
+**Database Export/Import (for Synology or migrations)**
+Export a dump (recommended: custom format):
+```bash
+scripts/export_db.sh
+```
+```bash
+scripts/export_db.sh --output backups/nutribuddy_20260101_120000.dump
+```
+
+Restore a dump:
+```bash
+scripts/restore_db.sh --input backups/nutribuddy_20260101_120000.dump
+```
+
+If you need to replace an existing database:
+```bash
+scripts/restore_db.sh --input backups/nutribuddy_20260101_120000.dump --clean
+```
+
+Windows (PowerShell):
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/export_db.ps1
+```
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/export_db.ps1 -Output backups\nutribuddy_20260101_120000.dump -Format custom
+```
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/restore_db.ps1 -Input backups\nutribuddy_20260101_120000.dump
+```
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/restore_db.ps1 -Input backups\nutribuddy_20260101_120000.dump -Clean
+```
+
+**Tests**
 ```bash
 docker compose exec web python manage.py test foods
 ```
 
-## What’s already set up
-- Docker Compose with `web` + `db` + `backup`
-- Dockerfile + `requirements.txt`
-- Django project with `foods` app
-- Users app with profile + JWT auth
-- FoodItem model (macros + optional micros + compatibilities + CIQUAL source fields)
-- Admin list/search/filters
-- REST API (CRUD)
-- Filters, search, ordering, pagination
-- CIQUAL import command
-- Auto-tag command for compatibilities
-- Automated backups (daily pg_dump + retention)
-- API tests (create/filter/search/pagination/ordering)
-- JWT auth endpoints (register, token, refresh)
-- Profile endpoint (dietary restrictions)
-- Next.js frontend (login/register/profile/foods)
+**Project Structure**
+- `nutribuddy/` Django project settings
+- `foods/` FoodItem model, API, imports, tagging
+- `users/` Auth and profile endpoints
+- `frontend/` Next.js app
+- `scripts/` Utilities and deploy script
+- `data/` Local datasets (CIQUAL, OFF, samples)
+
+**What’s Already Set Up**
+- Docker Compose with `web` + `db` + `backup` + `frontend`
+- Django + DRF + filtering + pagination
+- FoodItem model with nutrition fields and compatibilities
+- Admin search and filters
+- CIQUAL import and Open Food Facts minimal import
+- Compatibility tagging for CIQUAL and OFF
+- JWT auth endpoints and dietary profile
+- Automated backups
+- Basic API tests
 
 Next steps are documented in `context.md`.
