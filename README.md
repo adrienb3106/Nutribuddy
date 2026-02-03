@@ -59,6 +59,11 @@ docker compose exec web python manage.py tag_compatibilities --dry-run
 docker compose exec web python manage.py tag_compatibilities
 ```
 
+### 6b) Auto-tag Open Food Facts compatibilities (ingredients + tags)
+```bash
+docker compose exec web python manage.py tag_openfoodfacts_compatibilities --log-every 10000
+```
+
 ### 7) Open admin
 Visit `http://localhost:8000/admin/`.
 
