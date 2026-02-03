@@ -468,6 +468,78 @@ main {
   max-height: 240px;
 }
 
+.scan-layout {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  align-items: start;
+  margin-top: 20px;
+}
+
+.scan-video-wrap {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(11, 110, 79, 0.2);
+  background: #0f1a14;
+  min-height: 260px;
+}
+
+.scan-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.scan-overlay {
+  position: absolute;
+  inset: 12%;
+  border-radius: 16px;
+  border: 2px dashed rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 0 0 9999px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+.scan-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.scan-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.scan-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid rgba(11, 110, 79, 0.2);
+  background: rgba(11, 110, 79, 0.1);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.scan-error {
+  margin-top: 10px;
+  color: #8c2a2a;
+  font-size: 13px;
+}
+
+.scan-empty {
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
 @media (max-width: 640px) {
   .hero-title {
     font-size: 30px;

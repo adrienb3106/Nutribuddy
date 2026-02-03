@@ -41,6 +41,7 @@ export default function RootLayout({
             <div className="nav-links">
               <a href="/">Home</a>
               <a href="/foods">Foods</a>
+              <a href="/scan">Scan</a>
               <a href="/profile">Profile</a>
               {!isAuthed ? (
                 <>
