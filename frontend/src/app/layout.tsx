@@ -33,24 +33,24 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en">
+    <html lang="fr">
       <body className={`${spaceGrotesk.variable} ${newsreader.variable}`}>
         <nav className="nav">
           <div className="nav-inner">
             <div className="brand">Nutribuddy</div>
             <div className="nav-links">
-              <a href="/">Home</a>
-              <a href="/foods">Foods</a>
-              <a href="/scan">Scan</a>
-              <a href="/profile">Profile</a>
+              <a href="/">Accueil</a>
+              <a href="/foods">Aliments</a>
+              <a href="/scan">Scanner</a>
+              <a href="/profile">Profil</a>
               {!isAuthed ? (
                 <>
-                  <a href="/login">Login</a>
-                  <a href="/register">Register</a>
+                  <a href="/login">Connexion</a>
+                  <a href="/register">Inscription</a>
                 </>
               ) : (
                 <button className="link-button" onClick={onLogout}>
-                  Logout
+                  Déconnexion
                 </button>
               )}
             </div>

@@ -23,6 +23,14 @@ const defaultProfile: Profile = {
   irritability_level: 0,
 };
 
+const RESTRICTION_LABELS: Record<keyof Omit<Profile, "irritability_level">, string> = {
+  vegan: "Vegan",
+  vegetarian: "Végétarien",
+  pescetarian: "Pescétarien",
+  gluten_free: "Sans gluten",
+  lactose_free: "Sans lactose",
+};
+
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile>(defaultProfile);
   const [status, setStatus] = useState<string | null>(null);
@@ -32,7 +40,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!token) {
-      setError("Please log in first.");
+      setError("Veuillez vous connecter d'abord.");
       return;
     }
 
@@ -41,7 +49,7 @@ export default function ProfilePage() {
         setProfile(data);
         setError(null);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed"));
+      .catch((err) => setError(err instanceof Error ? err.message : "Échec du chargement"));
   }, [token]);
 
   const onToggle = (field: keyof Profile) => {
@@ -50,7 +58,7 @@ export default function ProfilePage() {
 
   const onSave = async () => {
     if (!token) {
-      setError("Please log in first.");
+      setError("Veuillez vous connecter d'abord.");
       return;
     }
 
@@ -64,10 +72,10 @@ export default function ProfilePage() {
         token
       );
       setProfile(data);
-      setStatus("Profile updated.");
+      setStatus("Profil mis à jour.");
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Update failed");
+      setError(err instanceof Error ? err.message : "Échec de la mise à jour");
       setStatus(null);
     }
   };
@@ -75,10 +83,10 @@ export default function ProfilePage() {
   return (
     <section className="grid">
       <div className="card">
-        <h1 className="section-title">Dietary profile</h1>
+        <h1 className="section-title">Profil alimentaire</h1>
         <p className="notice">
-          Tell Nutribuddy what you avoid. We will use this later to personalize
-          food searches.
+          Indiquez à Nutribuddy ce que vous évitez. Nous utiliserons ces
+          informations pour personnaliser les recherches d'aliments.
         </p>
         <div className="divider" />
         <div className="form">
@@ -90,11 +98,11 @@ export default function ProfilePage() {
                   checked={profile[field]}
                   onChange={() => onToggle(field)}
                 />
-                {" "}{field.replace("_", " ")}
+                {" "}{RESTRICTION_LABELS[field]}
               </label>
             )
           )}
-          <label className="label">Irritability level (0-3)</label>
+          <label className="label">Niveau d'irritabilité (0-3)</label>
           <input
             className="input"
             type="number"
@@ -109,20 +117,20 @@ export default function ProfilePage() {
             }
           />
           <button className="button" onClick={onSave}>
-            Save profile
+            Enregistrer le profil
           </button>
           {status ? <p className="notice">{status}</p> : null}
           {error ? <p className="notice">{error}</p> : null}
         </div>
       </div>
       <div className="card">
-        <h2 className="section-title">What happens next?</h2>
+        <h2 className="section-title">Et ensuite ?</h2>
         <p className="notice">
-          This profile will soon auto-apply to the foods list, so you can browse
-          without re-checking filters.
+          Ce profil sera bientôt appliqué automatiquement à la liste des
+          aliments, pour naviguer sans reconfigurer les filtres.
         </p>
         <div className="divider" />
-        <p className="notice">Tip: update this profile whenever your needs change.</p>
+        <p className="notice">Astuce : mettez ce profil à jour dès que vos besoins changent.</p>
       </div>
     </section>
   );

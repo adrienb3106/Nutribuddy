@@ -31,28 +31,28 @@ export default function LoginPage() {
       });
       setToken(data.access);
       setRefreshToken(data.refresh);
-      setStatus("Logged in. Tokens stored in your browser.");
+      setStatus("Connecté. Les jetons sont stockés dans votre navigateur.");
       setForm({ username: "", password: "" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(err instanceof Error ? err.message : "Échec de la connexion");
     }
   };
 
   return (
     <section className="grid">
       <div className="card">
-        <h1 className="section-title">Welcome back</h1>
-        <p className="notice">Use your credentials to access your profile.</p>
+        <h1 className="section-title">Bon retour</h1>
+        <p className="notice">Utilisez vos identifiants pour accéder à votre profil.</p>
         <div className="divider" />
         <form className="form" onSubmit={onSubmit}>
-          <label className="label">Username</label>
+          <label className="label">Nom d'utilisateur</label>
           <input
             className="input"
             value={form.username}
             onChange={(event) => onChange("username", event.target.value)}
             required
           />
-          <label className="label">Password</label>
+          <label className="label">Mot de passe</label>
           <input
             className="input"
             type="password"
@@ -61,17 +61,17 @@ export default function LoginPage() {
             required
           />
           <button className="button" type="submit">
-            Login
+            Connexion
           </button>
           {status ? <p className="notice">{status}</p> : null}
           {error ? <p className="notice">{error}</p> : null}
         </form>
       </div>
       <div className="card">
-        <h2 className="section-title">No account yet?</h2>
-        <p className="notice">Create your profile in less than a minute.</p>
+        <h2 className="section-title">Pas encore de compte ?</h2>
+        <p className="notice">Créez votre profil en moins d'une minute.</p>
         <a className="button secondary" href="/register">
-          Register
+          Inscription
         </a>
       </div>
     </section>

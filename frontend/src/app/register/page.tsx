@@ -27,35 +27,35 @@ export default function RegisterPage() {
         method: "POST",
         body: JSON.stringify(form),
       });
-      setStatus("Account created. You can now log in.");
+      setStatus("Compte créé. Vous pouvez maintenant vous connecter.");
       setForm({ username: "", email: "", password: "" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+      setError(err instanceof Error ? err.message : "Échec de l'inscription");
     }
   };
 
   return (
     <section className="grid">
       <div className="card">
-        <h1 className="section-title">Create your account</h1>
-        <p className="notice">Save your restrictions and keep them synced.</p>
+        <h1 className="section-title">Créer votre compte</h1>
+        <p className="notice">Enregistrez vos restrictions et gardez-les synchronisées.</p>
         <div className="divider" />
         <form className="form" onSubmit={onSubmit}>
-          <label className="label">Username</label>
+          <label className="label">Nom d'utilisateur</label>
           <input
             className="input"
             value={form.username}
             onChange={(event) => onChange("username", event.target.value)}
             required
           />
-          <label className="label">Email</label>
+          <label className="label">E-mail</label>
           <input
             className="input"
             type="email"
             value={form.email}
             onChange={(event) => onChange("email", event.target.value)}
           />
-          <label className="label">Password</label>
+          <label className="label">Mot de passe</label>
           <input
             className="input"
             type="password"
@@ -65,17 +65,17 @@ export default function RegisterPage() {
             minLength={8}
           />
           <button className="button" type="submit">
-            Register
+            Inscription
           </button>
           {status ? <p className="notice">{status}</p> : null}
           {error ? <p className="notice">{error}</p> : null}
         </form>
       </div>
       <div className="card">
-        <h2 className="section-title">Already have an account?</h2>
-        <p className="notice">Log in to update your dietary profile.</p>
+        <h2 className="section-title">Déjà un compte ?</h2>
+        <p className="notice">Connectez-vous pour mettre à jour votre profil.</p>
         <a className="button secondary" href="/login">
-          Go to login
+          Aller à la connexion
         </a>
       </div>
     </section>

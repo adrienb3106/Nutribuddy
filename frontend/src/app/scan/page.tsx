@@ -34,7 +34,24 @@ type ScanStatus = "idle" | "scanning" | "loading" | "found" | "not_found" | "err
 const SOURCE_LABELS: Record<string, string> = {
   ciqual: "Ciqual",
   openfoodfacts: "Open Food Facts",
-  manual: "Manual",
+  manual: "Manuel",
+};
+
+const RESTRICTION_LABELS = {
+  vegan: "Vegan",
+  vegetarian: "Végétarien",
+  pescetarian: "Pescétarien",
+  gluten_free: "Sans gluten",
+  lactose_free: "Sans lactose",
+} as const;
+
+const STATUS_LABELS: Record<ScanStatus, string> = {
+  idle: "prêt",
+  scanning: "scan en cours",
+  loading: "recherche",
+  found: "trouvé",
+  not_found: "introuvable",
+  error: "erreur",
 };
 
 export default function ScanPage() {
@@ -78,7 +95,7 @@ export default function ScanPage() {
     }
 
     if (!navigator.mediaDevices?.getUserMedia) {
-      setError("Camera not supported on this device.");
+      setError("Caméra non prise en charge sur cet appareil.");
       setStatus("error");
       setIsScanning(false);
       return;
@@ -86,7 +103,7 @@ export default function ScanPage() {
 
     const video = videoRef.current;
     if (!video) {
-      setError("Video element not ready.");
+      setError("Élément vidéo non prêt.");
       setStatus("error");
       setIsScanning(false);
       return;
@@ -124,7 +141,7 @@ export default function ScanPage() {
         setError(
           err instanceof Error
             ? err.message
-            : "Unable to start camera. Check permissions and HTTPS."
+            : "Impossible de démarrer la caméra. Vérifiez les permissions et HTTPS."
         );
         setStatus("error");
         stopScanner();
@@ -154,7 +171,7 @@ export default function ScanPage() {
         }
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Lookup failed");
+        setError(err instanceof Error ? err.message : "Recherche échouée");
         setStatus("error");
       });
   }, [barcode]);
@@ -183,10 +200,10 @@ export default function ScanPage() {
   return (
     <section>
       <div className="hero-card">
-        <h1 className="section-title">Scan a barcode</h1>
+        <h1 className="section-title">Scanner un code-barres</h1>
         <p className="notice">
-          Point your camera at the product barcode. If a match exists, we will
-          show it instantly.
+          Pointez la caméra vers le code-barres du produit. Si une correspondance
+          existe, elle s'affiche immédiatement.
         </p>
       </div>
 
@@ -199,66 +216,66 @@ export default function ScanPage() {
           <div className="scan-actions">
             {!isScanning ? (
               <button className="button" onClick={startScan}>
-                Start scan
+                Démarrer le scan
               </button>
             ) : (
               <button className="button secondary" onClick={stopScanner}>
-                Stop camera
+                Arrêter la caméra
               </button>
             )}
             {barcode ? (
               <button className="button secondary" onClick={startScan}>
-                Scan again
+                Scanner à nouveau
               </button>
             ) : null}
           </div>
           <div className="scan-status">
             <span className={`scan-pill scan-${status.replace("_", "-")}`}>
-              {status.replace("_", " ")}
+              {STATUS_LABELS[status]}
             </span>
             <span className="notice">
-              Camera requires HTTPS (or localhost) and permission.
+              La caméra nécessite HTTPS (ou localhost) et une autorisation.
             </span>
           </div>
           {error ? <p className="scan-error">{error}</p> : null}
         </div>
 
         <div className="hero-card">
-          <div className="section-title">Lookup</div>
+          <div className="section-title">Recherche</div>
           <form className="form" onSubmit={onManualSubmit}>
-            <label className="label">Barcode (manual)</label>
+            <label className="label">Code-barres (manuel)</label>
             <input
               className="input"
               value={manualBarcode}
               onChange={(event) => setManualBarcode(event.target.value)}
-              placeholder="e.g. 3274080005003"
+              placeholder="ex. 3274080005003"
             />
             <button className="button" type="submit">
-              Search
+              Rechercher
             </button>
           </form>
           <div className="divider" />
 
-          {status === "loading" ? <p className="notice">Searching...</p> : null}
+          {status === "loading" ? <p className="notice">Recherche...</p> : null}
           {status === "not_found" ? (
             <p className="scan-empty">
-              No match found for <strong>{barcode}</strong>.
+              Aucune correspondance pour <strong>{barcode}</strong>.
             </p>
           ) : null}
 
           {product ? (
             <div>
-              <div className="section-title">Product</div>
+              <div className="section-title">Produit</div>
               <div className="detail">
-                <span className="detail-label">Name</span>
+                <span className="detail-label">Nom</span>
                 <span className="detail-value">{product.name}</span>
               </div>
               <div className="detail">
-                <span className="detail-label">Brand</span>
+                <span className="detail-label">Marque</span>
                 <span className="detail-value">{product.brand || "—"}</span>
               </div>
               <div className="detail">
-                <span className="detail-label">Barcode</span>
+                <span className="detail-label">Code-barres</span>
                 <span className="detail-value">{product.barcode || "—"}</span>
               </div>
               <div className="detail">
@@ -273,25 +290,33 @@ export default function ScanPage() {
                 <span className="detail-value">{product.kcal_100g ?? "—"}</span>
               </div>
               <div className="detail">
-                <span className="detail-label">Protein</span>
+                <span className="detail-label">Protéines</span>
                 <span className="detail-value">{product.protein_g_100g ?? "—"}</span>
               </div>
               <div className="detail">
-                <span className="detail-label">Carbs</span>
+                <span className="detail-label">Glucides</span>
                 <span className="detail-value">{product.carbs_g_100g ?? "—"}</span>
               </div>
               <div className="detail">
-                <span className="detail-label">Fat</span>
+                <span className="detail-label">Lipides</span>
                 <span className="detail-value">{product.fat_g_100g ?? "—"}</span>
               </div>
               <div className="detail-column" style={{ marginTop: 12 }}>
                 <span className="detail-label">Restrictions</span>
                 <div className="food-tags">
-                  {product.vegan && <span className="tag">vegan</span>}
-                  {product.vegetarian && <span className="tag">vegetarian</span>}
-                  {product.pescetarian && <span className="tag">pescetarian</span>}
-                  {product.gluten_free && <span className="tag">gluten-free</span>}
-                  {product.lactose_free && <span className="tag">lactose-free</span>}
+                  {product.vegan && <span className="tag">{RESTRICTION_LABELS.vegan}</span>}
+                  {product.vegetarian && (
+                    <span className="tag">{RESTRICTION_LABELS.vegetarian}</span>
+                  )}
+                  {product.pescetarian && (
+                    <span className="tag">{RESTRICTION_LABELS.pescetarian}</span>
+                  )}
+                  {product.gluten_free && (
+                    <span className="tag">{RESTRICTION_LABELS.gluten_free}</span>
+                  )}
+                  {product.lactose_free && (
+                    <span className="tag">{RESTRICTION_LABELS.lactose_free}</span>
+                  )}
                   {!product.vegan &&
                     !product.vegetarian &&
                     !product.pescetarian &&
