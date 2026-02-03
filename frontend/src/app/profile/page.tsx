@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { apiFetch } from "@/lib/api";
+import { ALLERGEN_OPTIONS, type AllergenKey } from "@/lib/allergens";
 import { getToken } from "@/lib/auth";
 
 interface Profile {
@@ -12,7 +13,11 @@ interface Profile {
   gluten_free: boolean;
   lactose_free: boolean;
   irritability_level: number;
+  allergens: AllergenKey[];
+  filter_allergens: boolean;
 }
+
+type ToggleableField = Exclude<keyof Profile, "irritability_level" | "allergens">;
 
 const defaultProfile: Profile = {
   vegan: false,
@@ -21,6 +26,8 @@ const defaultProfile: Profile = {
   gluten_free: false,
   lactose_free: false,
   irritability_level: 0,
+  allergens: [],
+  filter_allergens: false,
 };
 
 const RESTRICTION_LABELS: Record<keyof Omit<Profile, "irritability_level">, string> = {
@@ -52,8 +59,20 @@ export default function ProfilePage() {
       .catch((err) => setError(err instanceof Error ? err.message : "Échec du chargement"));
   }, [token]);
 
-  const onToggle = (field: keyof Profile) => {
+  const onToggle = (field: ToggleableField) => {
     setProfile((prev) => ({ ...prev, [field]: !prev[field] }));
+  };
+
+  const onToggleAllergen = (key: AllergenKey) => {
+    setProfile((prev) => {
+      const next = new Set(prev.allergens);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return { ...prev, allergens: Array.from(next) };
+    });
   };
 
   const onSave = async () => {
@@ -102,6 +121,32 @@ export default function ProfilePage() {
               </label>
             )
           )}
+          <div className="divider" />
+          <div className="section-title">Allergies</div>
+          <p className="notice">
+            Sélectionnez les allergènes à éviter. Nous pouvons filtrer les produits
+            ou afficher un avertissement dans les résultats.
+          </p>
+          <div className="grid">
+            {ALLERGEN_OPTIONS.map((option) => (
+              <label key={option.key} className="label">
+                <input
+                  type="checkbox"
+                  checked={profile.allergens.includes(option.key)}
+                  onChange={() => onToggleAllergen(option.key)}
+                />
+                {" "}{option.label}
+              </label>
+            ))}
+          </div>
+          <label className="label">
+            <input
+              type="checkbox"
+              checked={profile.filter_allergens}
+              onChange={() => onToggle("filter_allergens")}
+            />
+            {" "}Filtrer les produits contenant ces allergènes
+          </label>
           <label className="label">Niveau d'irritabilité (0-3)</label>
           <input
             className="input"

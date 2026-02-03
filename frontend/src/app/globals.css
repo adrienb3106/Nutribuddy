@@ -289,6 +289,16 @@ main {
   letter-spacing: 0.04em;
 }
 
+.tag-warning {
+  border-color: rgba(191, 92, 26, 0.35);
+  background: rgba(191, 92, 26, 0.12);
+  color: #7a3b10;
+}
+
+.allergen-warning {
+  margin-top: 6px;
+}
+
 .source-pill {
   display: inline-flex;
   align-items: center;

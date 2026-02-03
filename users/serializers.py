@@ -26,4 +26,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "gluten_free",
             "lactose_free",
             "irritability_level",
+            "allergens",
+            "filter_allergens",
         )

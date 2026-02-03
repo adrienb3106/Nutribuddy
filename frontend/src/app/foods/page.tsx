@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { apiFetch } from "@/lib/api";
+import { detectAllergens, type AllergenKey } from "@/lib/allergens";
 import { getToken } from "@/lib/auth";
 
 interface FoodItem {
@@ -59,6 +60,8 @@ interface Profile {
   gluten_free: boolean;
   lactose_free: boolean;
   irritability_level: number;
+  allergens: AllergenKey[];
+  filter_allergens: boolean;
 }
 
 const DEFAULT_FILTERS = {
@@ -99,6 +102,9 @@ export default function FoodsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [applyProfile, setApplyProfile] = useState(false);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [profileAllergens, setProfileAllergens] = useState<AllergenKey[]>([]);
+  const [profileFilterAllergens, setProfileFilterAllergens] = useState(false);
   const [selectedItem, setSelectedItem] = useState<FoodItem | null>(null);
   const [brandSuggestions, setBrandSuggestions] = useState<string[]>([]);
   const [brandLoading, setBrandLoading] = useState(false);
@@ -117,13 +123,17 @@ export default function FoodsPage() {
     if (filters.irritability_max) {
       params.set("irritability_max", filters.irritability_max);
     }
+    if (applyProfile && profileFilterAllergens && profileAllergens.length > 0) {
+      params.set("exclude_allergens", "true");
+      params.set("allergens", profileAllergens.join(","));
+    }
     ("vegan vegetarian pescetarian gluten_free lactose_free" as const)
       .split(" ")
       .forEach((key) => {
         if (filters[key]) params.set(key, "true");
       });
     return params.toString();
-  }, [filters, page, ordering]);
+  }, [applyProfile, filters, page, ordering, profileAllergens, profileFilterAllergens]);
 
   useEffect(() => {
     if (!hasSearched) {
@@ -140,7 +150,7 @@ export default function FoodsPage() {
         setItems(data.results);
         setCount(data.count);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed"))
+      .catch((err) => setError(err instanceof Error ? err.message : "Échec du chargement"))
       .finally(() => setLoading(false));
   }, [hasSearched, queryString]);
 
@@ -162,17 +172,37 @@ export default function FoodsPage() {
   }, [filters.brand]);
 
   useEffect(() => {
+    setAuthToken(getToken());
+  }, []);
+
+  useEffect(() => {
+    if (!authToken) {
+      setProfileAllergens([]);
+      setProfileFilterAllergens(false);
+      return;
+    }
+    apiFetch<Profile>("/api/auth/profile/", {}, authToken)
+      .then((profile) => {
+        setProfileAllergens(profile.allergens || []);
+        setProfileFilterAllergens(!!profile.filter_allergens);
+      })
+      .catch(() => {
+        setProfileAllergens([]);
+        setProfileFilterAllergens(false);
+      });
+  }, [authToken]);
+
+  useEffect(() => {
     if (!applyProfile) {
       return;
     }
-    const token = getToken();
-    if (!token) {
+    if (!authToken) {
       setError("Connectez-vous pour appliquer votre profil alimentaire.");
       setApplyProfile(false);
       return;
     }
 
-    apiFetch<Profile>("/api/auth/profile/", {}, token)
+    apiFetch<Profile>("/api/auth/profile/", {}, authToken)
       .then((profile) => {
         setFilters((prev) => ({
           ...prev,
@@ -185,6 +215,8 @@ export default function FoodsPage() {
             ? String(profile.irritability_level)
             : "",
         }));
+        setProfileAllergens(profile.allergens || []);
+        setProfileFilterAllergens(!!profile.filter_allergens);
         setPage(1);
         setHasSearched(true);
       })
@@ -192,7 +224,7 @@ export default function FoodsPage() {
         setError(err instanceof Error ? err.message : "Impossible de charger le profil");
         setApplyProfile(false);
       });
-  }, [applyProfile]);
+  }, [applyProfile, authToken]);
 
   const onToggle = (key: keyof typeof DEFAULT_FILTERS) => {
     setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -210,6 +242,8 @@ export default function FoodsPage() {
     setFilters(DEFAULT_FILTERS);
     setApplyProfile(false);
     setPage(1);
+    setProfileAllergens([]);
+    setProfileFilterAllergens(false);
     setHasSearched(false);
   };
 
@@ -394,6 +428,10 @@ export default function FoodsPage() {
             });
 
             const sourceLabel = SOURCE_LABELS[item.source] ?? item.source;
+            const allergenMatches =
+              authToken && profileAllergens.length > 0
+                ? detectAllergens(item, profileAllergens)
+                : [];
 
             return (
               <div
@@ -434,6 +472,13 @@ export default function FoodsPage() {
                       <span className="tag">{RESTRICTION_LABELS.lactose_free}</span>
                     )}
                   </div>
+                  {allergenMatches.length > 0 ? (
+                    <div className="allergen-warning">
+                      <span className="tag tag-warning">
+                        Allergènes : {allergenMatches.join(", ")}
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
                 {macros.length > 0 ? (
                   <div className="macro-stack">
