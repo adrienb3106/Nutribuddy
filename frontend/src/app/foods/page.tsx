@@ -8,17 +8,41 @@ import { getToken } from "@/lib/auth";
 interface FoodItem {
   id: number;
   name: string;
+  brand?: string | null;
   source: string;
-  kcal_100g: string;
-  protein_g_100g: string;
-  carbs_g_100g: string;
-  fat_g_100g: string;
+  barcode?: string | null;
+  quantity?: string | null;
+  nutrition_per?: string | null;
+  kcal_100g: string | null;
+  protein_g_100g: string | null;
+  carbs_g_100g: string | null;
+  fat_g_100g: string | null;
+  sugars_g_100g?: string | null;
+  fiber_g_100g?: string | null;
+  saturated_fat_g_100g?: string | null;
+  salt_g_100g?: string | null;
+  nutrient_levels?: Record<string, string>;
+  nutriscore_grade?: string | null;
+  nutriscore_score?: number | null;
+  nutriscore_version?: string | null;
+  categories_tags?: string[];
+  allergens_tags?: string[];
+  labels_tags?: string[];
+  ingredients_text_fr?: string | null;
+  ingredients_text?: string | null;
+  ingredients_analysis_tags?: string[];
+  ingredients_from_palm_oil_tags?: string[];
+  ingredients_may_be_from_palm_oil_tags?: string[];
   vegan: boolean;
   vegetarian: boolean;
   pescetarian: boolean;
   gluten_free: boolean;
   lactose_free: boolean;
   irritability_level: number;
+  source_last_updated_t?: number | null;
+  source_completeness?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 interface PagedResponse<T> {
@@ -39,6 +63,7 @@ interface Profile {
 
 const DEFAULT_FILTERS = {
   search: "",
+  brand: "",
   source: "",
   vegan: false,
   vegetarian: false,
@@ -51,20 +76,32 @@ const DEFAULT_FILTERS = {
   irritability_max: "",
 };
 
+const SOURCE_LABELS: Record<string, string> = {
+  ciqual: "Ciqual",
+  openfoodfacts: "Open Food Facts",
+  manual: "Manual",
+};
+
 export default function FoodsPage() {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
+  const [ordering, setOrdering] = useState("name");
   const [items, setItems] = useState<FoodItem[]>([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [applyProfile, setApplyProfile] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<FoodItem | null>(null);
+  const [brandSuggestions, setBrandSuggestions] = useState<string[]>([]);
+  const [brandLoading, setBrandLoading] = useState(false);
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
     params.set("page", String(page));
     if (filters.search) params.set("search", filters.search);
+    if (filters.brand) params.set("brand", filters.brand);
     if (filters.source) params.set("source", filters.source);
+    if (ordering) params.set("ordering", ordering);
     if (filters.kcal_max) params.set("kcal_max", filters.kcal_max);
     if (filters.protein_min) params.set("protein_min", filters.protein_min);
     if (filters.fat_max) params.set("fat_max", filters.fat_max);
@@ -77,7 +114,7 @@ export default function FoodsPage() {
         if (filters[key]) params.set(key, "true");
       });
     return params.toString();
-  }, [filters, page]);
+  }, [filters, page, ordering]);
 
   useEffect(() => {
     setLoading(true);
@@ -91,6 +128,23 @@ export default function FoodsPage() {
       .catch((err) => setError(err instanceof Error ? err.message : "Failed"))
       .finally(() => setLoading(false));
   }, [queryString]);
+
+  useEffect(() => {
+    const query = filters.brand.trim();
+    if (!query) {
+      setBrandSuggestions([]);
+      setBrandLoading(false);
+      return;
+    }
+    const handle = window.setTimeout(() => {
+      setBrandLoading(true);
+      apiFetch<{ results: string[] }>(`/api/foods/brands/?q=${encodeURIComponent(query)}`)
+        .then((data) => setBrandSuggestions(data.results))
+        .catch(() => setBrandSuggestions([]))
+        .finally(() => setBrandLoading(false));
+    }, 250);
+    return () => window.clearTimeout(handle);
+  }, [filters.brand]);
 
   useEffect(() => {
     if (!applyProfile) {
@@ -140,6 +194,26 @@ export default function FoodsPage() {
     setPage(1);
   };
 
+  useEffect(() => {
+    if (!selectedItem) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSelectedItem(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedItem]);
+
+  const formatList = (value?: string[]) => {
+    if (!value || value.length === 0) {
+      return "—";
+    }
+    return value.join(", ");
+  };
+
   return (
     <section>
       <div className="hero-card">
@@ -157,6 +231,22 @@ export default function FoodsPage() {
             onChange={(event) => onChange("search", event.target.value)}
             placeholder="Try haricot, tomate, riz..."
           />
+          <label className="label">
+            Brand
+            {brandLoading ? <span className="notice">Loading...</span> : null}
+          </label>
+          <input
+            className="input"
+            value={filters.brand}
+            onChange={(event) => onChange("brand", event.target.value)}
+            placeholder="Start typing a brand..."
+            list="brand-suggestions"
+          />
+          <datalist id="brand-suggestions">
+            {brandSuggestions.map((brand) => (
+              <option key={brand} value={brand} />
+            ))}
+          </datalist>
           <label className="label">Source</label>
           <select
             className="input"
@@ -167,6 +257,20 @@ export default function FoodsPage() {
             <option value="ciqual">Ciqual</option>
             <option value="openfoodfacts">Open Food Facts</option>
             <option value="manual">Manual</option>
+          </select>
+          <label className="label">Sort</label>
+          <select
+            className="input"
+            value={ordering}
+            onChange={(event) => {
+              setOrdering(event.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="name">Name A → Z</option>
+            <option value="-name">Name Z → A</option>
+            <option value="-kcal_100g">Kcal ↓</option>
+            <option value="kcal_100g">Kcal ↑</option>
           </select>
           <div className="grid">
             <div>
@@ -241,31 +345,246 @@ export default function FoodsPage() {
         </div>
       </div>
 
-      <div className="section-title">Results ({count})</div>
+      <div className="foods-section">
+        <div className="foods-toolbar">
+          <div>
+            <div className="section-title">Results</div>
+            <p className="notice">{count} items</p>
+          </div>
+          <div className="notice">Page {page}</div>
+        </div>
       {loading ? <p className="notice">Loading...</p> : null}
       {error ? <p className="notice">{error}</p> : null}
 
-      <div className="grid">
-        {items.map((item) => (
-          <div className="card" key={item.id}>
-            <strong>{item.name}</strong>
-            <p className="notice">{item.source}</p>
-            <div>
-              <span className="badge">kcal {item.kcal_100g}</span>
-              <span className="badge">P {item.protein_g_100g}</span>
-              <span className="badge">C {item.carbs_g_100g}</span>
-              <span className="badge">F {item.fat_g_100g}</span>
+        <div className="foods-list">
+          {items.map((item) => {
+            const macros = [
+              { label: "kcal", value: item.kcal_100g, className: "macro-kcal" },
+              { label: "P", value: item.protein_g_100g, className: "macro-protein" },
+              { label: "C", value: item.carbs_g_100g, className: "macro-carbs" },
+              { label: "F", value: item.fat_g_100g, className: "macro-fat" },
+            ].filter(({ value }) => {
+              const num = Number(value);
+              return Number.isFinite(num) && num > 0;
+            });
+
+            const sourceLabel = SOURCE_LABELS[item.source] ?? item.source;
+
+            return (
+              <div
+                className="food-card"
+                key={item.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedItem(item)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setSelectedItem(item);
+                  }
+                }}
+              >
+                <div className="food-main">
+                  <div className="food-heading">
+                    <h3 className="food-name">{item.name}</h3>
+                    <span className={`source-pill source-${item.source}`}>
+                      {sourceLabel}
+                    </span>
+                  </div>
+                  {item.brand ? (
+                    <div className="food-brand">{item.brand}</div>
+                  ) : null}
+                  <div className="food-tags">
+                    {item.vegan && <span className="tag">vegan</span>}
+                    {item.vegetarian && <span className="tag">vegetarian</span>}
+                    {item.pescetarian && <span className="tag">pescetarian</span>}
+                    {item.gluten_free && <span className="tag">gluten-free</span>}
+                    {item.lactose_free && <span className="tag">lactose-free</span>}
+                  </div>
+                </div>
+                {macros.length > 0 ? (
+                  <div className="macro-stack">
+                    {macros.map((macro) => (
+                      <span
+                        key={macro.label}
+                        className={`macro-chip ${macro.className}`}
+                      >
+                        {macro.label} {macro.value}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {selectedItem ? (
+        <div className="modal-overlay" onClick={() => setSelectedItem(null)}>
+          <div className="modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h2 className="modal-title">{selectedItem.name}</h2>
+                {selectedItem.brand ? (
+                  <div className="modal-subtitle">{selectedItem.brand}</div>
+                ) : null}
+              </div>
+              <button className="modal-close" onClick={() => setSelectedItem(null)}>
+                Close
+              </button>
             </div>
-            <div style={{ marginTop: 8 }}>
-              {item.vegan && <span className="badge">vegan</span>}
-              {item.vegetarian && <span className="badge">vegetarian</span>}
-              {item.pescetarian && <span className="badge">pescetarian</span>}
-              {item.gluten_free && <span className="badge">gluten-free</span>}
-              {item.lactose_free && <span className="badge">lactose-free</span>}
+
+            <div className="modal-body">
+              <div className="modal-grid">
+                <div className="modal-section">
+                  <div className="section-title">Overview</div>
+                  <div className="detail">
+                    <span className="detail-label">Source</span>
+                    <span className="detail-value">
+                      {SOURCE_LABELS[selectedItem.source] ?? selectedItem.source}
+                    </span>
+                  </div>
+                  <div className="detail">
+                    <span className="detail-label">Barcode</span>
+                    <span className="detail-value">{selectedItem.barcode ?? "—"}</span>
+                  </div>
+                  <div className="detail">
+                    <span className="detail-label">Quantity</span>
+                    <span className="detail-value">{selectedItem.quantity ?? "—"}</span>
+                  </div>
+                  <div className="detail">
+                    <span className="detail-label">Nutrition per</span>
+                    <span className="detail-value">
+                      {selectedItem.nutrition_per ?? "—"}
+                    </span>
+                  </div>
+                  <div className="detail-column">
+                    <span className="detail-label">Restrictions</span>
+                    <div className="food-tags">
+                      {selectedItem.vegan && <span className="tag">vegan</span>}
+                      {selectedItem.vegetarian && (
+                        <span className="tag">vegetarian</span>
+                      )}
+                      {selectedItem.pescetarian && (
+                        <span className="tag">pescetarian</span>
+                      )}
+                      {selectedItem.gluten_free && (
+                        <span className="tag">gluten-free</span>
+                      )}
+                      {selectedItem.lactose_free && (
+                        <span className="tag">lactose-free</span>
+                      )}
+                      {!selectedItem.vegan &&
+                        !selectedItem.vegetarian &&
+                        !selectedItem.pescetarian &&
+                        !selectedItem.gluten_free &&
+                        !selectedItem.lactose_free && (
+                          <span className="notice">—</span>
+                        )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="modal-section">
+                  <div className="section-title">Nutrition</div>
+                  <div className="detail">
+                    <span className="detail-label">kcal</span>
+                    <span className="detail-value">{selectedItem.kcal_100g ?? "—"}</span>
+                  </div>
+                  <div className="detail">
+                    <span className="detail-label">Protein</span>
+                    <span className="detail-value">{selectedItem.protein_g_100g ?? "—"}</span>
+                  </div>
+                  <div className="detail">
+                    <span className="detail-label">Carbs</span>
+                    <span className="detail-value">{selectedItem.carbs_g_100g ?? "—"}</span>
+                  </div>
+                  <div className="detail">
+                    <span className="detail-label">Fat</span>
+                    <span className="detail-value">{selectedItem.fat_g_100g ?? "—"}</span>
+                  </div>
+                  <div className="detail">
+                    <span className="detail-label">Sugars</span>
+                    <span className="detail-value">{selectedItem.sugars_g_100g ?? "—"}</span>
+                  </div>
+                  <div className="detail">
+                    <span className="detail-label">Fiber</span>
+                    <span className="detail-value">{selectedItem.fiber_g_100g ?? "—"}</span>
+                  </div>
+                  <div className="detail">
+                    <span className="detail-label">Saturated fat</span>
+                    <span className="detail-value">
+                      {selectedItem.saturated_fat_g_100g ?? "—"}
+                    </span>
+                  </div>
+                  <div className="detail">
+                    <span className="detail-label">Salt</span>
+                    <span className="detail-value">{selectedItem.salt_g_100g ?? "—"}</span>
+                  </div>
+                </div>
+
+                <div className="modal-section">
+                  <div className="section-title">Nutri-score</div>
+                  <div className="detail">
+                    <span className="detail-label">Grade</span>
+                    <span className="detail-value">{selectedItem.nutriscore_grade ?? "—"}</span>
+                  </div>
+                  <div className="detail">
+                    <span className="detail-label">Score</span>
+                    <span className="detail-value">
+                      {selectedItem.nutriscore_score ?? "—"}
+                    </span>
+                  </div>
+                  <div className="detail">
+                    <span className="detail-label">Version</span>
+                    <span className="detail-value">
+                      {selectedItem.nutriscore_version ?? "—"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="modal-section">
+                  <div className="section-title">Tags</div>
+                  <div className="detail">
+                    <span className="detail-label">Categories</span>
+                    <span className="detail-value">{formatList(selectedItem.categories_tags)}</span>
+                  </div>
+                  <div className="detail">
+                    <span className="detail-label">Allergens</span>
+                    <span className="detail-value">{formatList(selectedItem.allergens_tags)}</span>
+                  </div>
+                  <div className="detail">
+                    <span className="detail-label">Labels</span>
+                    <span className="detail-value">{formatList(selectedItem.labels_tags)}</span>
+                  </div>
+                </div>
+
+                <div className="modal-section full-width">
+                  <div className="section-title">Ingredients</div>
+                  <div className="detail-column">
+                    <span className="detail-label">FR</span>
+                    <span className="detail-value">
+                      {selectedItem.ingredients_text_fr || "—"}
+                    </span>
+                  </div>
+                  <div className="detail-column">
+                    <span className="detail-label">Raw</span>
+                    <span className="detail-value">{selectedItem.ingredients_text || "—"}</span>
+                  </div>
+                </div>
+
+                <div className="modal-section full-width">
+                  <div className="section-title">Raw data</div>
+                  <pre className="raw-json">
+                    {JSON.stringify(selectedItem, null, 2)}
+                  </pre>
+                </div>
+              </div>
             </div>
           </div>
-        ))}
-      </div>
+        </div>
+      ) : null}
 
       <div style={{ marginTop: 20, display: "flex", gap: 12, alignItems: "center" }}>
         <button
