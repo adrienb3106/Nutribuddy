@@ -183,7 +183,7 @@ ALLERGEN_RULES: Dict[str, AllergenRule] = {
         key="soy",
         canonical="en:soybeans",
         tags={"en:soybeans", "en:soya", "fr:soja"},
-        tokens=_token_set(["soja", "soy", "soya"]),
+        tokens=_token_set(["soja", "soy", "soya", "tofu"]),
     ),
     "celery": AllergenRule(
         key="celery",

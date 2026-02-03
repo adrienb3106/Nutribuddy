@@ -148,7 +148,7 @@ const RULES: Record<
   },
   soy: {
     tags: ["en:soybeans", "en:soya", "fr:soja"],
-    tokens: ["soja", "soy", "soya"],
+    tokens: ["soja", "soy", "soya", "tofu"],
   },
   celery: {
     tags: ["en:celery", "fr:celeri"],
