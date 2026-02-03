@@ -187,6 +187,7 @@ Docker (recommended):
 docker compose up --build
 ```
 Frontend URL: `http://localhost:3000/`
+Scan page (mobile camera): `http://localhost:3000/scan`
 
 Local dev (without Docker):
 ```bash
