@@ -18,11 +18,13 @@ class FoodItemFilter(filters.FilterSet):
 
     irritability_min = filters.NumberFilter(field_name="irritability_level", lookup_expr="gte")
     irritability_max = filters.NumberFilter(field_name="irritability_level", lookup_expr="lte")
+    brand = filters.CharFilter(field_name="brand", lookup_expr="istartswith")
 
     class Meta:
         model = FoodItem
         fields = [
             "source",
+            "brand",
             "vegan",
             "vegetarian",
             "pescetarian",

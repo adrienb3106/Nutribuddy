@@ -1,4 +1,4 @@
-from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
@@ -107,15 +107,7 @@ class FoodItem(models.Model):
     gluten_free = models.BooleanField(default=False)
     lactose_free = models.BooleanField(default=False)
 
-    barcode = models.CharField(
-        max_length=32,
-        unique=True,
-        null=True,
-        blank=True,
-        validators=[
-            RegexValidator(r"^\d{8,14}$", "Barcode must be 8 to 14 digits (EAN/GTIN).")
-        ],
-    )
+    barcode = models.TextField(unique=True, null=True, blank=True)
 
     source_code = models.CharField(max_length=32, unique=True, null=True, blank=True)
     group_code = models.IntegerField(null=True, blank=True)
