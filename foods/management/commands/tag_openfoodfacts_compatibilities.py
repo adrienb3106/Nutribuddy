@@ -7,7 +7,7 @@ from django.db import transaction
 from foods.models import FoodItem
 
 
-LABEL_VEGAN = {"en:vegan"}
+LABEL_VEGAN = {"en:vegan", "en:100-vegetable"}
 LABEL_VEGETARIAN = {"en:vegetarian"}
 LABEL_PESCETARIAN = {"en:pescetarian"}
 LABEL_GLUTEN_FREE = {"en:gluten-free", "en:no-gluten"}

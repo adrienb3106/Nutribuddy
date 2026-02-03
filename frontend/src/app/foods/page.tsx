@@ -102,6 +102,7 @@ export default function FoodsPage() {
   const [selectedItem, setSelectedItem] = useState<FoodItem | null>(null);
   const [brandSuggestions, setBrandSuggestions] = useState<string[]>([]);
   const [brandLoading, setBrandLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -125,6 +126,12 @@ export default function FoodsPage() {
   }, [filters, page, ordering]);
 
   useEffect(() => {
+    if (!hasSearched) {
+      setItems([]);
+      setCount(0);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -135,7 +142,7 @@ export default function FoodsPage() {
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed"))
       .finally(() => setLoading(false));
-  }, [queryString]);
+  }, [hasSearched, queryString]);
 
   useEffect(() => {
     const query = filters.brand.trim();
@@ -179,6 +186,7 @@ export default function FoodsPage() {
             : "",
         }));
         setPage(1);
+        setHasSearched(true);
       })
       .catch((err) => {
         setError(err instanceof Error ? err.message : "Impossible de charger le profil");
@@ -189,17 +197,20 @@ export default function FoodsPage() {
   const onToggle = (key: keyof typeof DEFAULT_FILTERS) => {
     setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
     setPage(1);
+    setHasSearched(true);
   };
 
   const onChange = (key: keyof typeof DEFAULT_FILTERS, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
     setPage(1);
+    setHasSearched(true);
   };
 
   const resetFilters = () => {
     setFilters(DEFAULT_FILTERS);
     setApplyProfile(false);
     setPage(1);
+    setHasSearched(false);
   };
 
   useEffect(() => {
@@ -363,9 +374,15 @@ export default function FoodsPage() {
         </div>
       {loading ? <p className="notice">Chargement...</p> : null}
       {error ? <p className="notice">{error}</p> : null}
+      {!hasSearched && !loading && !error ? (
+        <p className="notice">
+          Lancez une recherche ou appliquez des filtres pour afficher des
+          aliments.
+        </p>
+      ) : null}
 
         <div className="foods-list">
-          {items.map((item) => {
+          {hasSearched ? items.map((item) => {
             const macros = [
               { label: "kcal", value: item.kcal_100g, className: "macro-kcal" },
               { label: "P", value: item.protein_g_100g, className: "macro-protein" },
@@ -432,7 +449,7 @@ export default function FoodsPage() {
                 ) : null}
               </div>
             );
-          })}
+          }) : null}
         </div>
       </div>
 
@@ -608,14 +625,14 @@ export default function FoodsPage() {
         <button
           className="button secondary"
           onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={page === 1}
+          disabled={page === 1 || !hasSearched}
         >
           Précédent
         </button>
         <button
           className="button"
           onClick={() => setPage((p) => p + 1)}
-          disabled={items.length === 0}
+          disabled={items.length === 0 || !hasSearched}
         >
           Suivant
         </button>

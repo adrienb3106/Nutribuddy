@@ -24,5 +24,18 @@ class FoodItemViewSet(viewsets.ModelViewSet):
         qs = FoodItem.objects.exclude(brand__isnull=True).exclude(brand__exact="")
         if query:
             qs = qs.filter(brand__istartswith=query)
-        brands = list(qs.order_by("brand").values_list("brand", flat=True).distinct()[:20])
-        return Response({"results": brands})
+        candidates = list(qs.order_by("brand").values_list("brand", flat=True)[:200])
+        seen = set()
+        results = []
+        for brand in candidates:
+            normalized = brand.strip()
+            if not normalized:
+                continue
+            key = normalized.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            results.append(normalized)
+            if len(results) >= 20:
+                break
+        return Response({"results": results})
