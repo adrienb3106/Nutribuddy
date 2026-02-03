@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { apiFetch } from "@/lib/api";
+import { getToken } from "@/lib/auth";
 
 interface FoodItem {
   id: number;
   name: string;
-  food_type: string;
+  source: string;
   kcal_100g: string;
   protein_g_100g: string;
   carbs_g_100g: string;
@@ -27,8 +28,18 @@ interface PagedResponse<T> {
   results: T[];
 }
 
+interface Profile {
+  vegan: boolean;
+  vegetarian: boolean;
+  pescetarian: boolean;
+  gluten_free: boolean;
+  lactose_free: boolean;
+  irritability_level: number;
+}
+
 const DEFAULT_FILTERS = {
   search: "",
+  source: "",
   vegan: false,
   vegetarian: false,
   pescetarian: false,
@@ -47,11 +58,13 @@ export default function FoodsPage() {
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [applyProfile, setApplyProfile] = useState(false);
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
     params.set("page", String(page));
     if (filters.search) params.set("search", filters.search);
+    if (filters.source) params.set("source", filters.source);
     if (filters.kcal_max) params.set("kcal_max", filters.kcal_max);
     if (filters.protein_min) params.set("protein_min", filters.protein_min);
     if (filters.fat_max) params.set("fat_max", filters.fat_max);
@@ -79,6 +92,38 @@ export default function FoodsPage() {
       .finally(() => setLoading(false));
   }, [queryString]);
 
+  useEffect(() => {
+    if (!applyProfile) {
+      return;
+    }
+    const token = getToken();
+    if (!token) {
+      setError("Log in to apply your dietary profile.");
+      setApplyProfile(false);
+      return;
+    }
+
+    apiFetch<Profile>("/api/auth/profile/", {}, token)
+      .then((profile) => {
+        setFilters((prev) => ({
+          ...prev,
+          vegan: profile.vegan,
+          vegetarian: profile.vegetarian,
+          pescetarian: profile.pescetarian,
+          gluten_free: profile.gluten_free,
+          lactose_free: profile.lactose_free,
+          irritability_max: profile.irritability_level
+            ? String(profile.irritability_level)
+            : "",
+        }));
+        setPage(1);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Failed to load profile");
+        setApplyProfile(false);
+      });
+  }, [applyProfile]);
+
   const onToggle = (key: keyof typeof DEFAULT_FILTERS) => {
     setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
     setPage(1);
@@ -91,6 +136,7 @@ export default function FoodsPage() {
 
   const resetFilters = () => {
     setFilters(DEFAULT_FILTERS);
+    setApplyProfile(false);
     setPage(1);
   };
 
@@ -111,6 +157,17 @@ export default function FoodsPage() {
             onChange={(event) => onChange("search", event.target.value)}
             placeholder="Try haricot, tomate, riz..."
           />
+          <label className="label">Source</label>
+          <select
+            className="input"
+            value={filters.source}
+            onChange={(event) => onChange("source", event.target.value)}
+          >
+            <option value="">All</option>
+            <option value="ciqual">Ciqual</option>
+            <option value="openfoodfacts">Open Food Facts</option>
+            <option value="manual">Manual</option>
+          </select>
           <div className="grid">
             <div>
               <label className="label">Max kcal / 100 g</label>
@@ -148,6 +205,7 @@ export default function FoodsPage() {
                 max={3}
                 value={filters.irritability_max}
                 onChange={(event) => onChange("irritability_max", event.target.value)}
+                disabled={applyProfile}
               />
             </div>
           </div>
@@ -159,12 +217,21 @@ export default function FoodsPage() {
                     type="checkbox"
                     checked={filters[key]}
                     onChange={() => onToggle(key)}
+                    disabled={applyProfile}
                   />
                   {" "}{key.replace("_", " ")}
                 </label>
               )
             )}
           </div>
+          <label className="label">
+            <input
+              type="checkbox"
+              checked={applyProfile}
+              onChange={() => setApplyProfile((prev) => !prev)}
+            />
+            {" "}Correspond au profil
+          </label>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <button className="button" type="button" onClick={resetFilters}>
               Reset filters
@@ -182,7 +249,7 @@ export default function FoodsPage() {
         {items.map((item) => (
           <div className="card" key={item.id}>
             <strong>{item.name}</strong>
-            <p className="notice">{item.food_type}</p>
+            <p className="notice">{item.source}</p>
             <div>
               <span className="badge">kcal {item.kcal_100g}</span>
               <span className="badge">P {item.protein_g_100g}</span>

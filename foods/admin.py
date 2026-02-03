@@ -7,7 +7,7 @@ from .models import FoodItem
 class FoodItemAdmin(admin.ModelAdmin):
     list_display = (
         "name",
-        "food_type",
+        "source",
         "kcal_100g",
         "protein_g_100g",
         "carbs_g_100g",
@@ -20,7 +20,7 @@ class FoodItemAdmin(admin.ModelAdmin):
     )
     search_fields = ("name", "barcode", "source_code")
     list_filter = (
-        "food_type",
+        "source",
         "vegan",
         "vegetarian",
         "pescetarian",

@@ -7,7 +7,7 @@ Django backend (REST API) + Next.js frontend for a food app.
 - Nutrition values are stored per 100 g (V1)
 
 ## Backend quick start (V1)
-The project is wired for Docker + PostgreSQL + Django.
+The project is wired for Docker + PostgreSQL + Django + Next.js frontend.
 
 ### 1) Configure env
 Copy `.env.example` to `.env` and edit values if needed.
@@ -91,17 +91,17 @@ curl -X PATCH "http://localhost:8000/api/auth/profile/" \
 ## Frontend (Next.js)
 The frontend lives in `frontend/`.
 
-Install dependencies (already done if the folder exists):
+### Option A: Docker (recommended)
+`docker compose up --build` also starts the frontend on `http://localhost:3000/`.
+
+If you want to override the API base URL, copy `frontend/.env.local.example` to `frontend/.env.local`.
+
+### Option B: Local dev (without Docker)
 ```bash
 cd frontend
 npm install
-```
-
-Run dev server:
-```bash
 npm run dev
 ```
-
 Then open `http://localhost:3000/`.
 
 ## Environment variables
