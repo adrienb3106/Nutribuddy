@@ -9,10 +9,10 @@ interface FoodItem {
   id: number;
   name: string;
   source: string;
-  kcal_100g: string;
-  protein_g_100g: string;
-  carbs_g_100g: string;
-  fat_g_100g: string;
+  kcal_100g: string | null;
+  protein_g_100g: string | null;
+  carbs_g_100g: string | null;
+  fat_g_100g: string | null;
   vegan: boolean;
   vegetarian: boolean;
   pescetarian: boolean;
@@ -54,6 +54,7 @@ const DEFAULT_FILTERS = {
 export default function FoodsPage() {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
+  const [ordering, setOrdering] = useState("name");
   const [items, setItems] = useState<FoodItem[]>([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -65,6 +66,7 @@ export default function FoodsPage() {
     params.set("page", String(page));
     if (filters.search) params.set("search", filters.search);
     if (filters.source) params.set("source", filters.source);
+    if (ordering) params.set("ordering", ordering);
     if (filters.kcal_max) params.set("kcal_max", filters.kcal_max);
     if (filters.protein_min) params.set("protein_min", filters.protein_min);
     if (filters.fat_max) params.set("fat_max", filters.fat_max);
@@ -77,7 +79,7 @@ export default function FoodsPage() {
         if (filters[key]) params.set(key, "true");
       });
     return params.toString();
-  }, [filters, page]);
+  }, [filters, page, ordering]);
 
   useEffect(() => {
     setLoading(true);
@@ -168,6 +170,20 @@ export default function FoodsPage() {
             <option value="openfoodfacts">Open Food Facts</option>
             <option value="manual">Manual</option>
           </select>
+          <label className="label">Sort</label>
+          <select
+            className="input"
+            value={ordering}
+            onChange={(event) => {
+              setOrdering(event.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="name">Name A → Z</option>
+            <option value="-name">Name Z → A</option>
+            <option value="-kcal_100g">Kcal ↓</option>
+            <option value="kcal_100g">Kcal ↑</option>
+          </select>
           <div className="grid">
             <div>
               <label className="label">Max kcal / 100 g</label>
@@ -250,12 +266,31 @@ export default function FoodsPage() {
           <div className="card" key={item.id}>
             <strong>{item.name}</strong>
             <p className="notice">{item.source}</p>
-            <div>
-              <span className="badge">kcal {item.kcal_100g}</span>
-              <span className="badge">P {item.protein_g_100g}</span>
-              <span className="badge">C {item.carbs_g_100g}</span>
-              <span className="badge">F {item.fat_g_100g}</span>
-            </div>
+            {(() => {
+              const macros = [
+                { label: "kcal", value: item.kcal_100g },
+                { label: "P", value: item.protein_g_100g },
+                { label: "C", value: item.carbs_g_100g },
+                { label: "F", value: item.fat_g_100g },
+              ].filter(({ value }) => {
+                const num = Number(value);
+                return Number.isFinite(num) && num > 0;
+              });
+
+              if (macros.length === 0) {
+                return null;
+              }
+
+              return (
+                <div>
+                  {macros.map((macro) => (
+                    <span key={macro.label} className="badge">
+                      {macro.label} {macro.value}
+                    </span>
+                  ))}
+                </div>
+              );
+            })()}
             <div style={{ marginTop: 8 }}>
               {item.vegan && <span className="badge">vegan</span>}
               {item.vegetarian && <span className="badge">vegetarian</span>}
