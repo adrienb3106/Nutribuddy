@@ -1,0 +1,43 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.p
+*.pdb
+*.so
+*.egg-info/
+.dist-info/
+.eggs/
+.build/
+.bdist/
+.dist/
+.venv/
+venv/
+ENV/
+.env/
+
+# Django
+*.log
+local_settings.py
+/db.sqlite3
+/media/
+/staticfiles/
+
+# Editors/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Docker
+*.pid
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# Data
+/data/
