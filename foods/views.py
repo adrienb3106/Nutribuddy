@@ -1,11 +1,11 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters as drf_filters
-from rest_framework import viewsets
+from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import FoodItem
-from .serializers import FoodItemSerializer
+from .models import FoodItem, ScanHistory
+from .serializers import FoodItemSerializer, ScanHistorySerializer
 from .filters import FoodItemFilter
 
 
@@ -39,3 +39,15 @@ class FoodItemViewSet(viewsets.ModelViewSet):
             if len(results) >= 20:
                 break
         return Response({"results": results})
+
+
+class ScanHistoryViewSet(viewsets.ModelViewSet):
+    serializer_class = ScanHistorySerializer
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["get", "post", "head", "options"]
+
+    def get_queryset(self):
+        return ScanHistory.objects.filter(user=self.request.user).select_related("food_item")
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)

@@ -17,6 +17,25 @@ interface Profile {
   filter_allergens: boolean;
 }
 
+interface ScanHistoryItem {
+  id: number;
+  scanned_at: string;
+  barcode?: string | null;
+  food: {
+    id: number;
+    name: string;
+    brand?: string | null;
+    barcode?: string | null;
+  };
+}
+
+interface PagedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
 type ToggleableField = Exclude<keyof Profile, "irritability_level" | "allergens">;
 
 const defaultProfile: Profile = {
@@ -42,6 +61,8 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile>(defaultProfile);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<ScanHistoryItem[]>([]);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   const token = getToken();
 
@@ -57,6 +78,22 @@ export default function ProfilePage() {
         setError(null);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Échec du chargement"));
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) {
+      setHistory([]);
+      setHistoryError(null);
+      return;
+    }
+    apiFetch<PagedResponse<ScanHistoryItem>>("/api/scan-history/", {}, token)
+      .then((data) => {
+        setHistory(data.results);
+        setHistoryError(null);
+      })
+      .catch((err) =>
+        setHistoryError(err instanceof Error ? err.message : "Échec du chargement")
+      );
   }, [token]);
 
   const onToggle = (field: ToggleableField) => {
@@ -97,6 +134,14 @@ export default function ProfilePage() {
       setError(err instanceof Error ? err.message : "Échec de la mise à jour");
       setStatus(null);
     }
+  };
+
+  const formatDateTime = (value: string) => {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+    return parsed.toLocaleString("fr-FR");
   };
 
   return (
@@ -177,6 +222,28 @@ export default function ProfilePage() {
         </p>
         <div className="divider" />
         <p className="notice">Astuce : mettez ce profil à jour dès que vos besoins changent.</p>
+      </div>
+      <div className="card">
+        <h2 className="section-title">Historique des scans</h2>
+        <p className="notice">Retrouvez les derniers produits scannés.</p>
+        <div className="divider" />
+        {historyError ? <p className="notice">{historyError}</p> : null}
+        {history.length === 0 && !historyError ? (
+          <p className="notice">Aucun scan enregistré pour le moment.</p>
+        ) : (
+          <div className="grid">
+            {history.slice(0, 12).map((item) => (
+              <div key={item.id} className="card">
+                <strong>{item.food?.name ?? "Produit"}</strong>
+                <p className="notice">{item.food?.brand ?? "—"}</p>
+                <p className="notice">
+                  {item.food?.barcode ?? item.barcode ?? "—"}
+                </p>
+                <p className="notice">Scanné le {formatDateTime(item.scanned_at)}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

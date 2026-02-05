@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import FoodItem
+from .models import FoodItem, ScanHistory
 
 
 @admin.register(FoodItem)
@@ -30,3 +30,11 @@ class FoodItemAdmin(admin.ModelAdmin):
         "irritability_level",
     )
     ordering = ("name",)
+
+
+@admin.register(ScanHistory)
+class ScanHistoryAdmin(admin.ModelAdmin):
+    list_display = ("user", "food_item", "barcode", "scanned_at")
+    search_fields = ("user__username", "food_item__name", "barcode")
+    list_filter = ("scanned_at",)
+    ordering = ("-scanned_at",)

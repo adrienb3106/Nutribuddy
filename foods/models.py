@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
@@ -144,3 +145,21 @@ class FoodItem(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class ScanHistory(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="scan_history"
+    )
+    food_item = models.ForeignKey(FoodItem, on_delete=models.CASCADE, related_name="scan_history")
+    barcode = models.TextField(null=True, blank=True)
+    scanned_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["user", "scanned_at"], name="scan_user_time_idx"),
+        ]
+        ordering = ["-scanned_at"]
+
+    def __str__(self) -> str:
+        return f"ScanHistory(user={self.user_id}, food={self.food_item_id})"

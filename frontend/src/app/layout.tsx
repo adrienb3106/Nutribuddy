@@ -42,7 +42,7 @@ export default function RootLayout({
               <a href="/">Accueil</a>
               <a href="/foods">Aliments</a>
               <a href="/scan">Scanner</a>
-              <a href="/profile">Profil</a>
+              {isAuthed ? <a href="/profile">Profil</a> : null}
               {!isAuthed ? (
                 <>
                   <a href="/login">Connexion</a>

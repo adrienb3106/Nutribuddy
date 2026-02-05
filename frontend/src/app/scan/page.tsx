@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { BrowserMultiFormatReader } from "@zxing/browser";
 
 import { apiFetch } from "@/lib/api";
+import { getToken } from "@/lib/auth";
 
 interface FoodItem {
   id: number;
@@ -198,9 +199,25 @@ export default function ScanPage() {
     )
       .then((data) => {
         if (data.results.length > 0) {
-          setProduct(data.results[0]);
-          setSelectedItem(data.results[0]);
+          const found = data.results[0];
+          setProduct(found);
+          setSelectedItem(found);
           setStatus("found");
+
+          const token = getToken();
+          if (token) {
+            apiFetch(
+              "/api/scan-history/",
+              {
+                method: "POST",
+                body: JSON.stringify({
+                  food_item: found.id,
+                  barcode: found.barcode || barcode,
+                }),
+              },
+              token
+            ).catch(() => undefined);
+          }
         } else {
           setProduct(null);
           setSelectedItem(null);

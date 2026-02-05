@@ -1,4 +1,16 @@
-﻿export default function HomePage() {
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { getToken } from "@/lib/auth";
+
+export default function HomePage() {
+  const [isAuthed, setIsAuthed] = useState(false);
+
+  useEffect(() => {
+    setIsAuthed(!!getToken());
+  }, []);
+
   return (
     <section className="hero">
       <div className="hero-card">
