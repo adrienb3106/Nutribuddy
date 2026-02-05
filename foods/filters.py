@@ -17,8 +17,7 @@ class FoodItemFilter(filters.FilterSet):
     fat_min = filters.NumberFilter(field_name="fat_g_100g", lookup_expr="gte")
     fat_max = filters.NumberFilter(field_name="fat_g_100g", lookup_expr="lte")
 
-    irritability_min = filters.NumberFilter(field_name="irritability_level", lookup_expr="gte")
-    irritability_max = filters.NumberFilter(field_name="irritability_level", lookup_expr="lte")
+    irritability_level = filters.ChoiceFilter(choices=FoodItem.Irritability.choices)
     brand = filters.CharFilter(field_name="brand", lookup_expr="istartswith")
     barcode = filters.CharFilter(field_name="barcode", lookup_expr="exact")
     allergens = filters.CharFilter(method="filter_allergens")

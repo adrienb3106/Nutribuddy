@@ -12,7 +12,7 @@ interface Profile {
   pescetarian: boolean;
   gluten_free: boolean;
   lactose_free: boolean;
-  irritability_level: number;
+  irritability_level: "high_fodmap" | "low_fodmap" | null;
   allergens: AllergenKey[];
   filter_allergens: boolean;
 }
@@ -25,7 +25,7 @@ const defaultProfile: Profile = {
   pescetarian: false,
   gluten_free: false,
   lactose_free: false,
-  irritability_level: 0,
+  irritability_level: null,
   allergens: [],
   filter_allergens: false,
 };
@@ -147,20 +147,21 @@ export default function ProfilePage() {
             />
             {" "}Filtrer les produits contenant ces allergènes
           </label>
-          <label className="label">Niveau d'irritabilité (0-3)</label>
-          <input
+          <label className="label">FODMAP (irritabilité du colon)</label>
+          <select
             className="input"
-            type="number"
-            min={0}
-            max={3}
-            value={profile.irritability_level}
+            value={profile.irritability_level ?? ""}
             onChange={(event) =>
               setProfile((prev) => ({
                 ...prev,
-                irritability_level: Number(event.target.value),
+                irritability_level: event.target.value ? event.target.value as Profile["irritability_level"] : null,
               }))
             }
-          />
+          >
+            <option value="">Inconnu</option>
+            <option value="low_fodmap">Pauvre en FODMAP</option>
+            <option value="high_fodmap">Riche en FODMAP</option>
+          </select>
           <button className="button" onClick={onSave}>
             Enregistrer le profil
           </button>

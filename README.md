@@ -110,6 +110,10 @@ Open Food Facts tagging (ingredients + labels + allergens):
 docker compose exec web python manage.py tag_openfoodfacts_compatibilities --log-every 10000
 ```
 
+FODMAP tagging is included in both commands. The keyword lists live in
+`foods/fodmap.py` and the result is stored in `irritability_level` as
+`low_fodmap` or `high_fodmap` (unknown stays null).
+
 Only tag rows that are still at default values:
 ```bash
 docker compose exec web python manage.py tag_compatibilities --only-if-default
@@ -152,6 +156,7 @@ curl "http://localhost:8000/api/foods/?vegan=true&kcal_max=200"
 Filters supported:
 - `search` on `name` (and barcode when relevant)
 - `food_type` and compatibilities (`vegan`, `vegetarian`, `pescetarian`, `gluten_free`, `lactose_free`)
+- `irritability_level` (`low_fodmap` or `high_fodmap`)
 - `kcal_min` and `kcal_max`
 - `protein_min`, `protein_max`, `carbs_min`, `carbs_max`, `fat_min`, `fat_max`
 - `barcode` exact match
@@ -209,7 +214,7 @@ curl "http://localhost:8000/api/auth/profile/" \
 curl -X PATCH "http://localhost:8000/api/auth/profile/" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <access_token>" \
-  -d '{"vegan":true,"gluten_free":true,"lactose_free":true,"irritability_level":1,"allergens":["peanuts","milk"],"filter_allergens":true}'
+  -d '{"vegan":true,"gluten_free":true,"lactose_free":true,"irritability_level":"low_fodmap","allergens":["peanuts","milk"],"filter_allergens":true}'
 ```
 
 **Frontend (Next.js)**

@@ -295,6 +295,18 @@ main {
   color: #7a3b10;
 }
 
+.tag-fodmap-low {
+  border-color: rgba(26, 140, 88, 0.35);
+  background: rgba(26, 140, 88, 0.12);
+  color: #0b5a3f;
+}
+
+.tag-fodmap-high {
+  border-color: rgba(176, 40, 40, 0.35);
+  background: rgba(176, 40, 40, 0.12);
+  color: #7a1f1f;
+}
+
 .allergen-warning {
   margin-top: 6px;
 }

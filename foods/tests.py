@@ -23,7 +23,6 @@ class FoodItemApiTests(APITestCase):
             "pescetarian": False,
             "gluten_free": False,
             "lactose_free": False,
-            "irritability_level": 0,
         }
         data.update(overrides)
         return FoodItem.objects.create(**data)
@@ -41,7 +40,7 @@ class FoodItemApiTests(APITestCase):
             "pescetarian": True,
             "gluten_free": True,
             "lactose_free": True,
-            "irritability_level": 0,
+            "irritability_level": FoodItem.Irritability.LOW_FODMAP,
         }
 
         response = self.client.post(self.list_url, payload, format="json")
@@ -71,6 +70,19 @@ class FoodItemApiTests(APITestCase):
         names = [item["name"] for item in response.data["results"]]
         self.assertIn("Light", names)
         self.assertNotIn("Heavy", names)
+
+    def test_filter_irritability_level(self):
+        self._create_food(name="Low FODMAP", irritability_level=FoodItem.Irritability.LOW_FODMAP)
+        self._create_food(name="High FODMAP", irritability_level=FoodItem.Irritability.HIGH_FODMAP)
+
+        response = self.client.get(
+            self.list_url, {"irritability_level": FoodItem.Irritability.LOW_FODMAP}
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        names = [item["name"] for item in response.data["results"]]
+        self.assertIn("Low FODMAP", names)
+        self.assertNotIn("High FODMAP", names)
 
     def test_search(self):
         self._create_food(name="Haricot vert")

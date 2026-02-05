@@ -7,6 +7,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from foods.models import FoodItem
+from foods.fodmap import classify_fodmap
 
 
 @dataclass(frozen=True)
@@ -271,6 +272,7 @@ class Command(BaseCommand):
             "pescetarian",
             "gluten_free",
             "lactose_free",
+            "irritability_level",
         )
         if limit:
             qs = qs[:limit]
@@ -293,6 +295,7 @@ class Command(BaseCommand):
                     or item.pescetarian
                     or item.gluten_free
                     or item.lactose_free
+                    or item.irritability_level
                 ):
                     if show_skipped:
                         skipped_rows.append((item.id, item.name, "already_tagged"))
@@ -322,6 +325,10 @@ class Command(BaseCommand):
 
                 _apply_name_overrides(item)
 
+                fodmap_value = classify_fodmap(item.name or "")
+                if fodmap_value:
+                    item.irritability_level = fodmap_value
+
                 item.save(
                     update_fields=[
                         "vegan",
@@ -329,6 +336,7 @@ class Command(BaseCommand):
                         "pescetarian",
                         "gluten_free",
                         "lactose_free",
+                        "irritability_level",
                     ]
                 )
                 updated += 1

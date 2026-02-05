@@ -8,6 +8,10 @@ class FoodItem(models.Model):
         OPENFOODFACTS = "openfoodfacts", "Open Food Facts"
         MANUAL = "manual", "Manual"
 
+    class Irritability(models.TextChoices):
+        HIGH_FODMAP = "high_fodmap", "Riche en FODMAP"
+        LOW_FODMAP = "low_fodmap", "Pauvre en FODMAP"
+
     name = models.TextField()
     brand = models.TextField(null=True, blank=True)
     quantity = models.TextField(null=True, blank=True)
@@ -101,8 +105,11 @@ class FoodItem(models.Model):
     vegan = models.BooleanField(default=False)
     vegetarian = models.BooleanField(default=False)
     pescetarian = models.BooleanField(default=False)
-    irritability_level = models.PositiveSmallIntegerField(
-        default=0, validators=[MinValueValidator(0), MaxValueValidator(3)]
+    irritability_level = models.CharField(
+        max_length=16,
+        choices=Irritability.choices,
+        null=True,
+        blank=True,
     )
     gluten_free = models.BooleanField(default=False)
     lactose_free = models.BooleanField(default=False)

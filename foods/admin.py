@@ -12,6 +12,7 @@ class FoodItemAdmin(admin.ModelAdmin):
         "protein_g_100g",
         "carbs_g_100g",
         "fat_g_100g",
+        "irritability_level",
         "vegan",
         "vegetarian",
         "pescetarian",

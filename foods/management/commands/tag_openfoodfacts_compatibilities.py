@@ -5,10 +5,11 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from foods.models import FoodItem
+from foods.fodmap import classify_fodmap
 
 
-LABEL_VEGAN = {"en:vegan", "en:100-vegetable"}
-LABEL_VEGETARIAN = {"en:vegetarian"}
+LABEL_VEGAN = {"en:vegan", "en:100-vegetable", "en:plant-based-foods-and-beverages", "en:plant-based-foods", "en:legumes-and-their-products" }
+LABEL_VEGETARIAN = {"en:vegetarian", "en:meat-alternatives"}
 LABEL_PESCETARIAN = {"en:pescetarian"}
 LABEL_GLUTEN_FREE = {"en:gluten-free", "en:no-gluten"}
 LABEL_LACTOSE_FREE = {"en:lactose-free", "en:milk-free"}
@@ -209,6 +210,7 @@ class Command(BaseCommand):
             "pescetarian",
             "gluten_free",
             "lactose_free",
+            "irritability_level",
         )
         if limit:
             qs = qs[:limit]
@@ -226,6 +228,7 @@ class Command(BaseCommand):
                     or item.pescetarian
                     or item.gluten_free
                     or item.lactose_free
+                    or item.irritability_level
                 ):
                     skipped += 1
                     continue
@@ -277,12 +280,23 @@ class Command(BaseCommand):
                     if name_tokens & NAME_GLUTEN_FREE_TRUE and not has_gluten:
                         gluten_free = True
 
+                fodmap_source = " ".join(
+                    value
+                    for value in [item.name, item.ingredients_text_fr, item.ingredients_text]
+                    if value
+                )
+                fodmap_value = classify_fodmap(fodmap_source)
+                new_irritability = (
+                    fodmap_value if fodmap_value else item.irritability_level
+                )
+
                 if (
                     vegan == item.vegan
                     and vegetarian == item.vegetarian
                     and pescetarian == item.pescetarian
                     and gluten_free == item.gluten_free
                     and lactose_free == item.lactose_free
+                    and new_irritability == item.irritability_level
                 ):
                     skipped += 1
                     continue
@@ -292,6 +306,8 @@ class Command(BaseCommand):
                 item.pescetarian = pescetarian
                 item.gluten_free = gluten_free
                 item.lactose_free = lactose_free
+                if fodmap_value:
+                    item.irritability_level = new_irritability
                 item.save(
                     update_fields=[
                         "vegan",
@@ -299,6 +315,7 @@ class Command(BaseCommand):
                         "pescetarian",
                         "gluten_free",
                         "lactose_free",
+                        "irritability_level",
                     ]
                 )
                 updated += 1

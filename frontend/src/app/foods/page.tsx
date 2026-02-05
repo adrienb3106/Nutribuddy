@@ -39,7 +39,8 @@ interface FoodItem {
   pescetarian: boolean;
   gluten_free: boolean;
   lactose_free: boolean;
-  irritability_level: number;
+  irritability_level: "high_fodmap" | "low_fodmap" | null;
+  fodmap_matches?: string[];
   source_last_updated_t?: number | null;
   source_completeness?: string | null;
   created_at?: string | null;
@@ -59,7 +60,7 @@ interface Profile {
   pescetarian: boolean;
   gluten_free: boolean;
   lactose_free: boolean;
-  irritability_level: number;
+  irritability_level: "high_fodmap" | "low_fodmap" | null;
   allergens: AllergenKey[];
   filter_allergens: boolean;
 }
@@ -76,7 +77,7 @@ const DEFAULT_FILTERS = {
   kcal_max: "",
   protein_min: "",
   fat_max: "",
-  irritability_max: "",
+  irritability_level: "",
 };
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -92,6 +93,16 @@ const RESTRICTION_LABELS = {
   gluten_free: "Sans gluten",
   lactose_free: "Sans lactose",
 } as const;
+
+const FODMAP_LABELS: Record<NonNullable<FoodItem["irritability_level"]>, string> = {
+  low_fodmap: "Pauvre en FODMAP",
+  high_fodmap: "Riche en FODMAP",
+};
+
+const FODMAP_TAG_CLASS: Record<NonNullable<FoodItem["irritability_level"]>, string> = {
+  low_fodmap: "tag-fodmap-low",
+  high_fodmap: "tag-fodmap-high",
+};
 
 export default function FoodsPage() {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
@@ -120,8 +131,8 @@ export default function FoodsPage() {
     if (filters.kcal_max) params.set("kcal_max", filters.kcal_max);
     if (filters.protein_min) params.set("protein_min", filters.protein_min);
     if (filters.fat_max) params.set("fat_max", filters.fat_max);
-    if (filters.irritability_max) {
-      params.set("irritability_max", filters.irritability_max);
+    if (filters.irritability_level) {
+      params.set("irritability_level", filters.irritability_level);
     }
     if (applyProfile && profileFilterAllergens && profileAllergens.length > 0) {
       params.set("exclude_allergens", "true");
@@ -211,9 +222,7 @@ export default function FoodsPage() {
           pescetarian: profile.pescetarian,
           gluten_free: profile.gluten_free,
           lactose_free: profile.lactose_free,
-          irritability_max: profile.irritability_level
-            ? String(profile.irritability_level)
-            : "",
+          irritability_level: profile.irritability_level ?? "",
         }));
         setProfileAllergens(profile.allergens || []);
         setProfileFilterAllergens(!!profile.filter_allergens);
@@ -354,16 +363,17 @@ export default function FoodsPage() {
               />
             </div>
             <div>
-              <label className="label">Irritabilité max (0-3)</label>
-              <input
+              <label className="label">FODMAP</label>
+              <select
                 className="input"
-                type="number"
-                min={0}
-                max={3}
-                value={filters.irritability_max}
-                onChange={(event) => onChange("irritability_max", event.target.value)}
+                value={filters.irritability_level}
+                onChange={(event) => onChange("irritability_level", event.target.value)}
                 disabled={applyProfile}
-              />
+              >
+                <option value="">Tous</option>
+                <option value="low_fodmap">Pauvre en FODMAP</option>
+                <option value="high_fodmap">Riche en FODMAP</option>
+              </select>
             </div>
           </div>
           <div className="grid">
@@ -471,6 +481,11 @@ export default function FoodsPage() {
                     {item.lactose_free && (
                       <span className="tag">{RESTRICTION_LABELS.lactose_free}</span>
                     )}
+                    {item.irritability_level && (
+                      <span className={`tag ${FODMAP_TAG_CLASS[item.irritability_level]}`}>
+                        {FODMAP_LABELS[item.irritability_level]}
+                      </span>
+                    )}
                   </div>
                   {allergenMatches.length > 0 ? (
                     <div className="allergen-warning">
@@ -555,14 +570,29 @@ export default function FoodsPage() {
                       {selectedItem.lactose_free && (
                         <span className="tag">{RESTRICTION_LABELS.lactose_free}</span>
                       )}
+                      {selectedItem.irritability_level && (
+                        <span
+                          className={`tag ${FODMAP_TAG_CLASS[selectedItem.irritability_level]}`}
+                        >
+                          {FODMAP_LABELS[selectedItem.irritability_level]}
+                        </span>
+                      )}
                       {!selectedItem.vegan &&
                         !selectedItem.vegetarian &&
                         !selectedItem.pescetarian &&
                         !selectedItem.gluten_free &&
-                        !selectedItem.lactose_free && (
+                        !selectedItem.lactose_free &&
+                        !selectedItem.irritability_level && (
                           <span className="notice">—</span>
                         )}
                     </div>
+                    {selectedItem.irritability_level === "high_fodmap" &&
+                    (selectedItem.fodmap_matches?.length ?? 0) > 0 ? (
+                      <div className="notice">
+                        {FODMAP_LABELS.high_fodmap} : contient {" "}
+                        {selectedItem.fodmap_matches?.join(", ")}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
