@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
@@ -64,8 +64,8 @@ const SOURCE_LABELS: Record<string, string> = {
 
 const RESTRICTION_LABELS = {
   vegan: "Vegan",
-  vegetarian: "Végétarien",
-  pescetarian: "Pescétarien",
+  vegetarian: "Vegetarien",
+  pescetarian: "Pescetarien",
   gluten_free: "Sans gluten",
   lactose_free: "Sans lactose",
 } as const;
@@ -81,10 +81,10 @@ const FODMAP_TAG_CLASS: Record<NonNullable<FoodItem["irritability_level"]>, stri
 };
 
 const STATUS_LABELS: Record<ScanStatus, string> = {
-  idle: "prêt",
+  idle: "pret",
   scanning: "scan en cours",
   loading: "recherche",
-  found: "trouvé",
+  found: "trouve",
   not_found: "introuvable",
   error: "erreur",
 };
@@ -131,7 +131,7 @@ export default function ScanPage() {
     }
 
     if (!navigator.mediaDevices?.getUserMedia) {
-      setError("Caméra non prise en charge sur cet appareil.");
+      setError("Camera non prise en charge sur cet appareil.");
       setStatus("error");
       setIsScanning(false);
       return;
@@ -139,7 +139,7 @@ export default function ScanPage() {
 
     const video = videoRef.current;
     if (!video) {
-      setError("Élément vidéo non prêt.");
+      setError("Element video non pret.");
       setStatus("error");
       setIsScanning(false);
       return;
@@ -177,7 +177,7 @@ export default function ScanPage() {
         setError(
           err instanceof Error
             ? err.message
-            : "Impossible de démarrer la caméra. Vérifiez les permissions et HTTPS."
+            : "Impossible de demarrer la camera. Verifiez les permissions et HTTPS."
         );
         setStatus("error");
         stopScanner();
@@ -194,9 +194,7 @@ export default function ScanPage() {
       return;
     }
     setError(null);
-    apiFetch<PagedResponse<FoodItem>>(
-      `/api/foods/?barcode=${encodeURIComponent(barcode)}`
-    )
+    apiFetch<PagedResponse<FoodItem>>(`/api/foods/?barcode=${encodeURIComponent(barcode)}`)
       .then((data) => {
         if (data.results.length > 0) {
           const found = data.results[0];
@@ -225,7 +223,7 @@ export default function ScanPage() {
         }
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Recherche échouée");
+        setError(err instanceof Error ? err.message : "Recherche echouee");
         setStatus("error");
       });
   }, [barcode]);
@@ -268,23 +266,26 @@ export default function ScanPage() {
 
   const formatList = (value?: string[]) => {
     if (!value || value.length === 0) {
-      return "—";
+      return "-";
     }
     return value.join(", ");
   };
 
   return (
-    <section>
-      <div className="hero-card">
-        <h1 className="section-title">Scanner un code-barres</h1>
-        <p className="notice">
-          Pointez la caméra vers le code-barres du produit. Si une correspondance
-          existe, elle s'affiche immédiatement.
-        </p>
-      </div>
+    <section className="page">
+      <header className="page-header">
+        <div>
+          <div className="eyebrow">Scan instantane</div>
+          <h1 className="page-title">Scanner un code-barres</h1>
+          <p className="page-subtitle">
+            Pointez la camera vers le code-barres. La fiche produit s'ouvre des
+            qu'une correspondance est trouvee.
+          </p>
+        </div>
+      </header>
 
       <div className="scan-layout">
-        <div className="hero-card">
+        <div className="panel">
           <div className="scan-video-wrap">
             <video className="scan-video" ref={videoRef} muted playsInline />
             <div className="scan-overlay" />
@@ -292,16 +293,16 @@ export default function ScanPage() {
           <div className="scan-actions">
             {!isScanning ? (
               <button className="button" onClick={startScan}>
-                Démarrer le scan
+                Demarrer le scan
               </button>
             ) : (
               <button className="button secondary" onClick={stopScanner}>
-                Arrêter la caméra
+                Arreter la camera
               </button>
             )}
             {barcode ? (
               <button className="button secondary" onClick={startScan}>
-                Scanner à nouveau
+                Scanner a nouveau
               </button>
             ) : null}
           </div>
@@ -310,16 +311,16 @@ export default function ScanPage() {
               {STATUS_LABELS[status]}
             </span>
             <span className="notice">
-              La caméra nécessite HTTPS (ou localhost) et une autorisation.
+              La camera necessite HTTPS (ou localhost) et une autorisation.
             </span>
           </div>
           {error ? <p className="scan-error">{error}</p> : null}
         </div>
 
-        <div className="hero-card">
-          <div className="section-title">Recherche</div>
+        <div className="panel">
+          <div className="section-title">Recherche manuelle</div>
           <form className="form" onSubmit={onManualSubmit}>
-            <label className="label">Code-barres (manuel)</label>
+            <label className="label">Code-barres</label>
             <input
               className="input"
               value={manualBarcode}
@@ -340,7 +341,7 @@ export default function ScanPage() {
           ) : null}
 
           {product ? (
-            <div>
+            <div className="stack">
               <div className="section-title">Produit</div>
               <div className="detail">
                 <span className="detail-label">Nom</span>
@@ -348,11 +349,11 @@ export default function ScanPage() {
               </div>
               <div className="detail">
                 <span className="detail-label">Marque</span>
-                <span className="detail-value">{product.brand || "—"}</span>
+                <span className="detail-value">{product.brand || "-"}</span>
               </div>
               <div className="detail">
                 <span className="detail-label">Code-barres</span>
-                <span className="detail-value">{product.barcode || "—"}</span>
+                <span className="detail-value">{product.barcode || "-"}</span>
               </div>
               <div className="detail">
                 <span className="detail-label">Source</span>
@@ -362,20 +363,20 @@ export default function ScanPage() {
               </div>
               <div className="divider" />
               <div className="detail">
-                <span className="detail-label">kcal / 100g</span>
-                <span className="detail-value">{product.kcal_100g ?? "—"}</span>
+                <span className="detail-label">kcal / 100 g</span>
+                <span className="detail-value">{product.kcal_100g ?? "-"}</span>
               </div>
               <div className="detail">
-                <span className="detail-label">Protéines</span>
-                <span className="detail-value">{product.protein_g_100g ?? "—"}</span>
+                <span className="detail-label">Proteines</span>
+                <span className="detail-value">{product.protein_g_100g ?? "-"}</span>
               </div>
               <div className="detail">
                 <span className="detail-label">Glucides</span>
-                <span className="detail-value">{product.carbs_g_100g ?? "—"}</span>
+                <span className="detail-value">{product.carbs_g_100g ?? "-"}</span>
               </div>
               <div className="detail">
                 <span className="detail-label">Lipides</span>
-                <span className="detail-value">{product.fat_g_100g ?? "—"}</span>
+                <span className="detail-value">{product.fat_g_100g ?? "-"}</span>
               </div>
               <div className="detail-column" style={{ marginTop: 12 }}>
                 <span className="detail-label">Restrictions</span>
@@ -403,7 +404,7 @@ export default function ScanPage() {
                     !product.pescetarian &&
                     !product.gluten_free &&
                     !product.lactose_free &&
-                    !product.irritability_level && <span className="notice">—</span>}
+                    !product.irritability_level && <span className="notice">-</span>}
                 </div>
               </div>
             </div>
@@ -429,7 +430,7 @@ export default function ScanPage() {
             <div className="modal-body">
               <div className="modal-grid">
                 <div className="modal-section">
-                  <div className="section-title">Aperçu</div>
+                  <div className="section-title">Apercu</div>
                   <div className="detail">
                     <span className="detail-label">Source</span>
                     <span className="detail-value">
@@ -438,16 +439,16 @@ export default function ScanPage() {
                   </div>
                   <div className="detail">
                     <span className="detail-label">Code-barres</span>
-                    <span className="detail-value">{selectedItem.barcode ?? "—"}</span>
+                    <span className="detail-value">{selectedItem.barcode ?? "-"}</span>
                   </div>
                   <div className="detail">
-                    <span className="detail-label">Quantité</span>
-                    <span className="detail-value">{selectedItem.quantity ?? "—"}</span>
+                    <span className="detail-label">Quantite</span>
+                    <span className="detail-value">{selectedItem.quantity ?? "-"}</span>
                   </div>
                   <div className="detail">
                     <span className="detail-label">Nutrition pour</span>
                     <span className="detail-value">
-                      {selectedItem.nutrition_per ?? "—"}
+                      {selectedItem.nutrition_per ?? "-"}
                     </span>
                   </div>
                   <div className="detail-column">
@@ -481,13 +482,13 @@ export default function ScanPage() {
                         !selectedItem.gluten_free &&
                         !selectedItem.lactose_free &&
                         !selectedItem.irritability_level && (
-                          <span className="notice">—</span>
+                          <span className="notice">-</span>
                         )}
                     </div>
                     {selectedItem.irritability_level === "high_fodmap" &&
                     (selectedItem.fodmap_matches?.length ?? 0) > 0 ? (
                       <div className="notice">
-                        {FODMAP_LABELS.high_fodmap} car{" "}
+                        {FODMAP_LABELS.high_fodmap} car {" "}
                         {selectedItem.fodmap_matches?.join(", ")}
                       </div>
                     ) : null}
@@ -498,45 +499,37 @@ export default function ScanPage() {
                   <div className="section-title">Nutrition</div>
                   <div className="detail">
                     <span className="detail-label">kcal</span>
-                    <span className="detail-value">{selectedItem.kcal_100g ?? "—"}</span>
+                    <span className="detail-value">{selectedItem.kcal_100g ?? "-"}</span>
                   </div>
                   <div className="detail">
-                    <span className="detail-label">Protéines</span>
-                    <span className="detail-value">
-                      {selectedItem.protein_g_100g ?? "—"}
-                    </span>
+                    <span className="detail-label">Proteines</span>
+                    <span className="detail-value">{selectedItem.protein_g_100g ?? "-"}</span>
                   </div>
                   <div className="detail">
                     <span className="detail-label">Glucides</span>
-                    <span className="detail-value">
-                      {selectedItem.carbs_g_100g ?? "—"}
-                    </span>
+                    <span className="detail-value">{selectedItem.carbs_g_100g ?? "-"}</span>
                   </div>
                   <div className="detail">
                     <span className="detail-label">Lipides</span>
-                    <span className="detail-value">{selectedItem.fat_g_100g ?? "—"}</span>
+                    <span className="detail-value">{selectedItem.fat_g_100g ?? "-"}</span>
                   </div>
                   <div className="detail">
                     <span className="detail-label">Sucres</span>
-                    <span className="detail-value">
-                      {selectedItem.sugars_g_100g ?? "—"}
-                    </span>
+                    <span className="detail-value">{selectedItem.sugars_g_100g ?? "-"}</span>
                   </div>
                   <div className="detail">
                     <span className="detail-label">Fibres</span>
-                    <span className="detail-value">
-                      {selectedItem.fiber_g_100g ?? "—"}
-                    </span>
+                    <span className="detail-value">{selectedItem.fiber_g_100g ?? "-"}</span>
                   </div>
                   <div className="detail">
-                    <span className="detail-label">Graisses saturées</span>
+                    <span className="detail-label">Graisses saturees</span>
                     <span className="detail-value">
-                      {selectedItem.saturated_fat_g_100g ?? "—"}
+                      {selectedItem.saturated_fat_g_100g ?? "-"}
                     </span>
                   </div>
                   <div className="detail">
                     <span className="detail-label">Sel</span>
-                    <span className="detail-value">{selectedItem.salt_g_100g ?? "—"}</span>
+                    <span className="detail-value">{selectedItem.salt_g_100g ?? "-"}</span>
                   </div>
                 </div>
 
@@ -544,67 +537,51 @@ export default function ScanPage() {
                   <div className="section-title">Nutri-score</div>
                   <div className="detail">
                     <span className="detail-label">Grade</span>
-                    <span className="detail-value">
-                      {selectedItem.nutriscore_grade ?? "—"}
-                    </span>
+                    <span className="detail-value">{selectedItem.nutriscore_grade ?? "-"}</span>
                   </div>
                   <div className="detail">
                     <span className="detail-label">Score</span>
-                    <span className="detail-value">
-                      {selectedItem.nutriscore_score ?? "—"}
-                    </span>
+                    <span className="detail-value">{selectedItem.nutriscore_score ?? "-"}</span>
                   </div>
                   <div className="detail">
                     <span className="detail-label">Version</span>
-                    <span className="detail-value">
-                      {selectedItem.nutriscore_version ?? "—"}
-                    </span>
+                    <span className="detail-value">{selectedItem.nutriscore_version ?? "-"}</span>
                   </div>
                 </div>
 
                 <div className="modal-section">
-                  <div className="section-title">Étiquettes</div>
+                  <div className="section-title">Etiquettes</div>
                   <div className="detail">
-                    <span className="detail-label">Catégories</span>
-                    <span className="detail-value">
-                      {formatList(selectedItem.categories_tags)}
-                    </span>
+                    <span className="detail-label">Categories</span>
+                    <span className="detail-value">{formatList(selectedItem.categories_tags)}</span>
                   </div>
                   <div className="detail">
-                    <span className="detail-label">Allergènes</span>
-                    <span className="detail-value">
-                      {formatList(selectedItem.allergens_tags)}
-                    </span>
+                    <span className="detail-label">Allergenes</span>
+                    <span className="detail-value">{formatList(selectedItem.allergens_tags)}</span>
                   </div>
                   <div className="detail">
                     <span className="detail-label">Labels</span>
-                    <span className="detail-value">
-                      {formatList(selectedItem.labels_tags)}
-                    </span>
+                    <span className="detail-value">{formatList(selectedItem.labels_tags)}</span>
                   </div>
                 </div>
 
                 <div className="modal-section full-width">
-                  <div className="section-title">Ingrédients</div>
+                  <div className="section-title">Ingredients</div>
                   <div className="detail-column">
                     <span className="detail-label">FR</span>
                     <span className="detail-value">
-                      {selectedItem.ingredients_text_fr || "—"}
+                      {selectedItem.ingredients_text_fr || "-"}
                     </span>
                   </div>
                   <div className="detail-column">
                     <span className="detail-label">Brut</span>
-                    <span className="detail-value">
-                      {selectedItem.ingredients_text || "—"}
-                    </span>
+                    <span className="detail-value">{selectedItem.ingredients_text || "-"}</span>
                   </div>
                 </div>
 
                 <div className="modal-section full-width">
-                  <div className="section-title">Données brutes</div>
-                  <pre className="raw-json">
-                    {JSON.stringify(selectedItem, null, 2)}
-                  </pre>
+                  <div className="section-title">Donnees brutes</div>
+                  <pre className="raw-json">{JSON.stringify(selectedItem, null, 2)}</pre>
                 </div>
               </div>
             </div>

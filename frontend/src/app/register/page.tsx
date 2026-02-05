@@ -27,18 +27,19 @@ export default function RegisterPage() {
         method: "POST",
         body: JSON.stringify(form),
       });
-      setStatus("Compte créé. Vous pouvez maintenant vous connecter.");
+      setStatus("Compte cree. Vous pouvez maintenant vous connecter.");
       setForm({ username: "", email: "", password: "" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Échec de l'inscription");
+      setError(err instanceof Error ? err.message : "Echec de l'inscription");
     }
   };
 
   return (
-    <section className="grid">
-      <div className="card">
-        <h1 className="section-title">Créer votre compte</h1>
-        <p className="notice">Enregistrez vos restrictions et gardez-les synchronisées.</p>
+    <section className="auth-layout">
+      <div className="panel">
+        <span className="badge">Creation rapide</span>
+        <h1 className="section-title">Creer votre compte</h1>
+        <p className="notice">Activez votre profil et synchronisez vos filtres.</p>
         <div className="divider" />
         <form className="form" onSubmit={onSubmit}>
           <label className="label">Nom d'utilisateur</label>
@@ -71,11 +72,11 @@ export default function RegisterPage() {
           {error ? <p className="notice">{error}</p> : null}
         </form>
       </div>
-      <div className="card">
-        <h2 className="section-title">Déjà un compte ?</h2>
-        <p className="notice">Connectez-vous pour mettre à jour votre profil.</p>
+      <div className="panel">
+        <h2 className="section-title">Deja un compte ?</h2>
+        <p className="notice">Connectez-vous pour mettre a jour votre profil.</p>
         <a className="button secondary" href="/login">
-          Aller à la connexion
+          Aller a la connexion
         </a>
       </div>
     </section>

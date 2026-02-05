@@ -92,8 +92,8 @@ const defaultProfile: Profile = {
 
 const RESTRICTION_LABELS: Record<keyof Omit<Profile, "irritability_level">, string> = {
   vegan: "Vegan",
-  vegetarian: "Végétarien",
-  pescetarian: "Pescétarien",
+  vegetarian: "Vegetarien",
+  pescetarian: "Pescetarien",
   gluten_free: "Sans gluten",
   lactose_free: "Sans lactose",
 };
@@ -141,7 +141,7 @@ export default function ProfilePage() {
         setProfile(data);
         setError(null);
       })
-      .catch((err) => setError(formatError(err, "Échec du chargement")));
+      .catch((err) => setError(formatError(err, "Echec du chargement")));
   }, [token]);
 
   useEffect(() => {
@@ -155,7 +155,7 @@ export default function ProfilePage() {
         setHistory(data.results);
         setHistoryError(null);
       })
-      .catch((err) => setHistoryError(formatError(err, "Échec du chargement")));
+      .catch((err) => setHistoryError(formatError(err, "Echec du chargement")));
   }, [token]);
 
   const onToggle = (field: ToggleableField) => {
@@ -190,10 +190,10 @@ export default function ProfilePage() {
         token
       );
       setProfile(data);
-      setStatus("Profil mis à jour.");
+      setStatus("Profil mis a jour.");
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Échec de la mise à jour");
+      setError(err instanceof Error ? err.message : "Echec de la mise a jour");
       setStatus(null);
     }
   };
@@ -208,7 +208,7 @@ export default function ProfilePage() {
 
   const formatList = (value?: string[]) => {
     if (!value || value.length === 0) {
-      return "—";
+      return "-";
     }
     return value.join(", ");
   };
@@ -243,139 +243,154 @@ export default function ProfilePage() {
   }, [selectedItem]);
 
   return (
-    <section className="grid">
-      <div className="card">
-        <h1 className="section-title">Profil alimentaire</h1>
-        <p className="notice">
-          Indiquez à Nutribuddy ce que vous évitez. Nous utiliserons ces
-          informations pour personnaliser les recherches d'aliments.
-        </p>
-        <div className="divider" />
-        <div className="form">
-          {(["vegan", "vegetarian", "pescetarian", "gluten_free", "lactose_free"] as const).map(
-            (field) => (
-              <label key={field} className="label">
-                <input
-                  type="checkbox"
-                  checked={profile[field]}
-                  onChange={() => onToggle(field)}
-                />
-                {" "}{RESTRICTION_LABELS[field]}
-              </label>
-            )
-          )}
-          <div className="divider" />
-          <div className="section-title">Allergies</div>
-          <p className="notice">
-            Sélectionnez les allergènes à éviter. Nous pouvons filtrer les produits
-            ou afficher un avertissement dans les résultats.
+    <section className="page">
+      <header className="page-header">
+        <div>
+          <div className="eyebrow">Profil</div>
+          <h1 className="page-title">Votre profil alimentaire</h1>
+          <p className="page-subtitle">
+            Definissez vos contraintes pour filtrer automatiquement les aliments.
           </p>
-          <div className="grid">
-            {ALLERGEN_OPTIONS.map((option) => (
-              <label key={option.key} className="label">
-                <input
-                  type="checkbox"
-                  checked={profile.allergens.includes(option.key)}
-                  onChange={() => onToggleAllergen(option.key)}
-                />
-                {" "}{option.label}
-              </label>
-            ))}
+        </div>
+      </header>
+
+      <div className="layout-two">
+        <div className="panel">
+          <h2 className="section-title">Preferences</h2>
+          <p className="notice">
+            Ces filtres seront appliques sur la liste des aliments et le scan.
+          </p>
+          <div className="divider" />
+          <div className="form">
+            {(["vegan", "vegetarian", "pescetarian", "gluten_free", "lactose_free"] as const).map(
+              (field) => (
+                <label key={field} className="label">
+                  <input
+                    type="checkbox"
+                    checked={profile[field]}
+                    onChange={() => onToggle(field)}
+                  />
+                  {" "}{RESTRICTION_LABELS[field]}
+                </label>
+              )
+            )}
+            <div className="divider" />
+            <div className="section-title">Allergenes</div>
+            <p className="notice">
+              Selectionnez les allergenes a eviter. Nous pouvons filtrer les produits
+              ou afficher un avertissement.
+            </p>
+            <div className="grid">
+              {ALLERGEN_OPTIONS.map((option) => (
+                <label key={option.key} className="label">
+                  <input
+                    type="checkbox"
+                    checked={profile.allergens.includes(option.key)}
+                    onChange={() => onToggleAllergen(option.key)}
+                  />
+                  {" "}{option.label}
+                </label>
+              ))}
+            </div>
+            <label className="label">
+              <input
+                type="checkbox"
+                checked={profile.filter_allergens}
+                onChange={() => onToggle("filter_allergens")}
+              />
+              {" "}Filtrer les produits contenant ces allergenes
+            </label>
+            <label className="label">FODMAP (irritabilite du colon)</label>
+            <select
+              className="input"
+              value={profile.irritability_level ?? ""}
+              onChange={(event) =>
+                setProfile((prev) => ({
+                  ...prev,
+                  irritability_level: event.target.value
+                    ? (event.target.value as Profile["irritability_level"])
+                    : null,
+                }))
+              }
+            >
+              <option value="">Inconnu</option>
+              <option value="low_fodmap">Pauvre en FODMAP</option>
+              <option value="high_fodmap">Riche en FODMAP</option>
+            </select>
+            <button className="button" onClick={onSave}>
+              Enregistrer le profil
+            </button>
+            {status ? <p className="notice">{status}</p> : null}
+            {error ? <p className="notice">{error}</p> : null}
           </div>
-          <label className="label">
-            <input
-              type="checkbox"
-              checked={profile.filter_allergens}
-              onChange={() => onToggle("filter_allergens")}
-            />
-            {" "}Filtrer les produits contenant ces allergènes
-          </label>
-          <label className="label">FODMAP (irritabilité du colon)</label>
-          <select
-            className="input"
-            value={profile.irritability_level ?? ""}
-            onChange={(event) =>
-              setProfile((prev) => ({
-                ...prev,
-                irritability_level: event.target.value ? event.target.value as Profile["irritability_level"] : null,
-              }))
-            }
-          >
-            <option value="">Inconnu</option>
-            <option value="low_fodmap">Pauvre en FODMAP</option>
-            <option value="high_fodmap">Riche en FODMAP</option>
-          </select>
-          <button className="button" onClick={onSave}>
-            Enregistrer le profil
-          </button>
-          {status ? <p className="notice">{status}</p> : null}
-          {error ? <p className="notice">{error}</p> : null}
+        </div>
+
+        <div className="panel">
+          <h2 className="section-title">Historique des scans</h2>
+          <p className="notice">Retrouvez les derniers produits scannes.</p>
+          <div className="divider" />
+          {historyError ? <p className="notice">{historyError}</p> : null}
+          {selectedLoading ? <p className="notice">Chargement de la fiche...</p> : null}
+          {selectedError ? <p className="notice">{selectedError}</p> : null}
+          {history.length === 0 && !historyError ? (
+            <p className="notice">Aucun scan enregistre pour le moment.</p>
+          ) : (
+            <>
+              {showAllHistory ? (
+                <div className="stack">
+                  {history.map((item) => (
+                    <div key={item.id} className="detail">
+                      <span className="detail-label">
+                        {formatDateTime(item.scanned_at)}
+                      </span>
+                      <button
+                        className="link-button"
+                        type="button"
+                        onClick={() => openFood(item.food?.id)}
+                      >
+                        {item.food?.name ?? "Produit"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid">
+                  {history.slice(0, HISTORY_PREVIEW_COUNT).map((item) => (
+                    <div
+                      key={item.id}
+                      className="card clickable"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openFood(item.food?.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          openFood(item.food?.id);
+                        }
+                      }}
+                    >
+                      <strong>{item.food?.name ?? "Produit"}</strong>
+                      <p className="notice">{item.food?.brand ?? "-"}</p>
+                      <p className="notice">
+                        {item.food?.barcode ?? item.barcode ?? "-"}
+                      </p>
+                      <p className="notice">Scanne le {formatDateTime(item.scanned_at)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                className="button secondary"
+                type="button"
+                onClick={() => setShowAllHistory((prev) => !prev)}
+              >
+                {showAllHistory ? "Afficher moins" : "Voir tous les scans"}
+              </button>
+            </>
+          )}
         </div>
       </div>
-      <div className="card">
-        <h2 className="section-title">Historique des scans</h2>
-        <p className="notice">Retrouvez les derniers produits scannés.</p>
-        <div className="divider" />
-        {historyError ? <p className="notice">{historyError}</p> : null}
-        {selectedLoading ? <p className="notice">Chargement de la fiche...</p> : null}
-        {selectedError ? <p className="notice">{selectedError}</p> : null}
-        {history.length === 0 && !historyError ? (
-          <p className="notice">Aucun scan enregistré pour le moment.</p>
-        ) : (
-          <>
-            {showAllHistory ? (
-              <div className="card">
-                {history.map((item) => (
-                  <div key={item.id} className="detail">
-                    <span className="detail-label">
-                      {formatDateTime(item.scanned_at)}
-                    </span>
-                    <button
-                      className="link-button"
-                      type="button"
-                      onClick={() => openFood(item.food?.id)}
-                    >
-                      {item.food?.name ?? "Produit"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="grid">
-                {history.slice(0, HISTORY_PREVIEW_COUNT).map((item) => (
-                  <div
-                    key={item.id}
-                    className="card clickable"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openFood(item.food?.id)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        openFood(item.food?.id);
-                      }
-                    }}
-                  >
-                    <strong>{item.food?.name ?? "Produit"}</strong>
-                    <p className="notice">{item.food?.brand ?? "—"}</p>
-                    <p className="notice">
-                      {item.food?.barcode ?? item.barcode ?? "—"}
-                    </p>
-                    <p className="notice">Scanné le {formatDateTime(item.scanned_at)}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-            <button
-              className="button secondary"
-              type="button"
-              onClick={() => setShowAllHistory((prev) => !prev)}
-            >
-              {showAllHistory ? "Afficher moins" : "Voir tous les scans"}
-            </button>
-          </>
-        )}
-      </div>
+
       {selectedItem ? (
         <div className="modal-overlay" onClick={() => setSelectedItem(null)}>
           <div className="modal" onClick={(event) => event.stopPropagation()}>
@@ -394,23 +409,23 @@ export default function ProfilePage() {
             <div className="modal-body">
               <div className="modal-grid">
                 <div className="modal-section">
-                  <div className="section-title">Aperçu</div>
+                  <div className="section-title">Apercu</div>
                   <div className="detail">
                     <span className="detail-label">Source</span>
-                    <span className="detail-value">{selectedItem.source ?? "—"}</span>
+                    <span className="detail-value">{selectedItem.source ?? "-"}</span>
                   </div>
                   <div className="detail">
                     <span className="detail-label">Code-barres</span>
-                    <span className="detail-value">{selectedItem.barcode ?? "—"}</span>
+                    <span className="detail-value">{selectedItem.barcode ?? "-"}</span>
                   </div>
                   <div className="detail">
-                    <span className="detail-label">Quantité</span>
-                    <span className="detail-value">{selectedItem.quantity ?? "—"}</span>
+                    <span className="detail-label">Quantite</span>
+                    <span className="detail-value">{selectedItem.quantity ?? "-"}</span>
                   </div>
                   <div className="detail">
                     <span className="detail-label">Nutrition pour</span>
                     <span className="detail-value">
-                      {selectedItem.nutrition_per ?? "—"}
+                      {selectedItem.nutrition_per ?? "-"}
                     </span>
                   </div>
                   <div className="detail-column">
@@ -444,13 +459,13 @@ export default function ProfilePage() {
                         !selectedItem.gluten_free &&
                         !selectedItem.lactose_free &&
                         !selectedItem.irritability_level && (
-                          <span className="notice">—</span>
+                          <span className="notice">-</span>
                         )}
                     </div>
                     {selectedItem.irritability_level === "high_fodmap" &&
                     (selectedItem.fodmap_matches?.length ?? 0) > 0 ? (
                       <div className="notice">
-                        {FODMAP_LABELS.high_fodmap} car{" "}
+                        {FODMAP_LABELS.high_fodmap} car {" "}
                         {selectedItem.fodmap_matches?.join(", ")}
                       </div>
                     ) : null}
@@ -461,45 +476,37 @@ export default function ProfilePage() {
                   <div className="section-title">Nutrition</div>
                   <div className="detail">
                     <span className="detail-label">kcal</span>
-                    <span className="detail-value">{selectedItem.kcal_100g ?? "—"}</span>
+                    <span className="detail-value">{selectedItem.kcal_100g ?? "-"}</span>
                   </div>
                   <div className="detail">
-                    <span className="detail-label">Protéines</span>
-                    <span className="detail-value">
-                      {selectedItem.protein_g_100g ?? "—"}
-                    </span>
+                    <span className="detail-label">Proteines</span>
+                    <span className="detail-value">{selectedItem.protein_g_100g ?? "-"}</span>
                   </div>
                   <div className="detail">
                     <span className="detail-label">Glucides</span>
-                    <span className="detail-value">
-                      {selectedItem.carbs_g_100g ?? "—"}
-                    </span>
+                    <span className="detail-value">{selectedItem.carbs_g_100g ?? "-"}</span>
                   </div>
                   <div className="detail">
                     <span className="detail-label">Lipides</span>
-                    <span className="detail-value">{selectedItem.fat_g_100g ?? "—"}</span>
+                    <span className="detail-value">{selectedItem.fat_g_100g ?? "-"}</span>
                   </div>
                   <div className="detail">
                     <span className="detail-label">Sucres</span>
-                    <span className="detail-value">
-                      {selectedItem.sugars_g_100g ?? "—"}
-                    </span>
+                    <span className="detail-value">{selectedItem.sugars_g_100g ?? "-"}</span>
                   </div>
                   <div className="detail">
                     <span className="detail-label">Fibres</span>
-                    <span className="detail-value">
-                      {selectedItem.fiber_g_100g ?? "—"}
-                    </span>
+                    <span className="detail-value">{selectedItem.fiber_g_100g ?? "-"}</span>
                   </div>
                   <div className="detail">
-                    <span className="detail-label">Graisses saturées</span>
+                    <span className="detail-label">Graisses saturees</span>
                     <span className="detail-value">
-                      {selectedItem.saturated_fat_g_100g ?? "—"}
+                      {selectedItem.saturated_fat_g_100g ?? "-"}
                     </span>
                   </div>
                   <div className="detail">
                     <span className="detail-label">Sel</span>
-                    <span className="detail-value">{selectedItem.salt_g_100g ?? "—"}</span>
+                    <span className="detail-value">{selectedItem.salt_g_100g ?? "-"}</span>
                   </div>
                 </div>
 
@@ -507,34 +514,28 @@ export default function ProfilePage() {
                   <div className="section-title">Nutri-score</div>
                   <div className="detail">
                     <span className="detail-label">Grade</span>
-                    <span className="detail-value">
-                      {selectedItem.nutriscore_grade ?? "—"}
-                    </span>
+                    <span className="detail-value">{selectedItem.nutriscore_grade ?? "-"}</span>
                   </div>
                   <div className="detail">
                     <span className="detail-label">Score</span>
-                    <span className="detail-value">
-                      {selectedItem.nutriscore_score ?? "—"}
-                    </span>
+                    <span className="detail-value">{selectedItem.nutriscore_score ?? "-"}</span>
                   </div>
                   <div className="detail">
                     <span className="detail-label">Version</span>
-                    <span className="detail-value">
-                      {selectedItem.nutriscore_version ?? "—"}
-                    </span>
+                    <span className="detail-value">{selectedItem.nutriscore_version ?? "-"}</span>
                   </div>
                 </div>
 
                 <div className="modal-section">
-                  <div className="section-title">Étiquettes</div>
+                  <div className="section-title">Etiquettes</div>
                   <div className="detail">
-                    <span className="detail-label">Catégories</span>
+                    <span className="detail-label">Categories</span>
                     <span className="detail-value">
                       {formatList(selectedItem.categories_tags)}
                     </span>
                   </div>
                   <div className="detail">
-                    <span className="detail-label">Allergènes</span>
+                    <span className="detail-label">Allergenes</span>
                     <span className="detail-value">
                       {formatList(selectedItem.allergens_tags)}
                     </span>
@@ -548,26 +549,24 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="modal-section full-width">
-                  <div className="section-title">Ingrédients</div>
+                  <div className="section-title">Ingredients</div>
                   <div className="detail-column">
                     <span className="detail-label">FR</span>
                     <span className="detail-value">
-                      {selectedItem.ingredients_text_fr || "—"}
+                      {selectedItem.ingredients_text_fr || "-"}
                     </span>
                   </div>
                   <div className="detail-column">
                     <span className="detail-label">Brut</span>
                     <span className="detail-value">
-                      {selectedItem.ingredients_text || "—"}
+                      {selectedItem.ingredients_text || "-"}
                     </span>
                   </div>
                 </div>
 
                 <div className="modal-section full-width">
-                  <div className="section-title">Données brutes</div>
-                  <pre className="raw-json">
-                    {JSON.stringify(selectedItem, null, 2)}
-                  </pre>
+                  <div className="section-title">Donnees brutes</div>
+                  <pre className="raw-json">{JSON.stringify(selectedItem, null, 2)}</pre>
                 </div>
               </div>
             </div>

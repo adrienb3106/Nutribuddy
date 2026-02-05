@@ -1,19 +1,19 @@
 ﻿"use client";
 
 import { useEffect, useState } from "react";
-import { Newsreader, Space_Grotesk } from "next/font/google";
+import { Fraunces, Sora } from "next/font/google";
 import "./globals.css";
 
 import { clearTokens, getToken } from "@/lib/auth";
 
-const spaceGrotesk = Space_Grotesk({
+const sora = Sora({
   subsets: ["latin"],
   variable: "--font-sans",
 });
 
-const newsreader = Newsreader({
+const fraunces = Fraunces({
   subsets: ["latin"],
-  variable: "--font-serif",
+  variable: "--font-display",
 });
 
 export default function RootLayout({
@@ -34,14 +34,20 @@ export default function RootLayout({
 
   return (
     <html lang="fr">
-      <body className={`${spaceGrotesk.variable} ${newsreader.variable}`}>
+      <body className={`${sora.variable} ${fraunces.variable} app-shell`}>
         <nav className="nav">
           <div className="nav-inner">
-            <div className="brand">Nutribuddy</div>
+            <div className="nav-left">
+              <a className="brand" href="/">
+                <span className="brand-mark">NB</span>
+                <span>Nutribuddy</span>
+              </a>
+            </div>
             <div className="nav-links">
               <a href="/">Accueil</a>
               <a href="/foods">Aliments</a>
               <a href="/scan">Scanner</a>
+              <a href="/info">Info</a>
               {isAuthed ? <a href="/profile">Profil</a> : null}
               {!isAuthed ? (
                 <>
@@ -50,13 +56,22 @@ export default function RootLayout({
                 </>
               ) : (
                 <button className="link-button" onClick={onLogout}>
-                  Déconnexion
+                  Deconnexion
                 </button>
               )}
             </div>
           </div>
         </nav>
         <main>{children}</main>
+        <footer className="footer">
+          <div className="footer-inner">
+            <div className="footer-brand">
+              <span className="brand-mark">NB</span>
+              <span>Nutribuddy</span>
+            </div>
+            <span className="notice">CIQUAL + Open Food Facts - 2026</span>
+          </div>
+        </footer>
       </body>
     </html>
   );

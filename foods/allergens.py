@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Set
+import re
 import unicodedata
 
 from django.db.models import Q
@@ -14,9 +15,24 @@ class AllergenRule:
 
 
 def _normalize(text: str) -> str:
-    text = text.lower().replace("œ", "oe").replace("æ", "ae")
+    text = text.lower().replace("\u0153", "oe").replace("\u00e6", "ae")
     text = unicodedata.normalize("NFKD", text)
-    return "".join(ch for ch in text if not unicodedata.combining(ch))
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    text = "".join(ch if ch.isalnum() else " " for ch in text)
+    return " ".join(text.split())
+
+
+def _is_negated(haystack: str, token: str) -> bool:
+    if not token:
+        return False
+    escaped = re.escape(token)
+    negation_patterns = [
+        rf"(?:^|\s)sans(?:\s+\w+){{0,2}}\s+{escaped}(?:\s|$)",
+        rf"(?:^|\s)without(?:\s+\w+){{0,2}}\s+{escaped}(?:\s|$)",
+        rf"(?:^|\s){escaped}\s+free(?:\s|$)",
+        rf"(?:^|\s)free\s+from(?:\s+\w+){{0,2}}\s+{escaped}(?:\s|$)",
+    ]
+    return any(re.search(pattern, haystack) for pattern in negation_patterns)
 
 
 def _token_set(values: Iterable[str]) -> Set[str]:
@@ -242,7 +258,8 @@ def detect_allergen_tags(
     matches = set()
     for rule in ALLERGEN_RULES.values():
         for token in rule.tokens:
-            if _normalize(token) in haystack:
+            normalized_token = _normalize(token)
+            if normalized_token in haystack and not _is_negated(haystack, normalized_token):
                 matches.add(rule.canonical)
                 break
     return sorted(matches)
