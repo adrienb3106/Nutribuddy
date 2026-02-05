@@ -114,6 +114,24 @@ FODMAP tagging is included in both commands. The keyword lists live in
 `foods/fodmap.py` and the result is stored in `irritability_level` as
 `low_fodmap` or `high_fodmap` (unknown stays null).
 
+**Data cleanup (aberrant foods)**
+You can scan and optionally delete rows with placeholder or nonsensical names.
+
+Dry run (recommended):
+```bash
+docker compose exec web python manage.py clean_foods
+```
+
+Apply deletion:
+```bash
+docker compose exec web python manage.py clean_foods --apply
+```
+
+Tune heuristics (optional):
+```bash
+docker compose exec web python manage.py clean_foods --min-alpha-ratio 0.4 --min-letters 4
+```
+
 Only tag rows that are still at default values:
 ```bash
 docker compose exec web python manage.py tag_compatibilities --only-if-default
