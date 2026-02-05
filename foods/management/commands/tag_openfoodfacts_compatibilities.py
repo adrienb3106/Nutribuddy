@@ -14,6 +14,23 @@ LABEL_PESCETARIAN = {"en:pescetarian"}
 LABEL_GLUTEN_FREE = {"en:gluten-free", "en:no-gluten"}
 LABEL_LACTOSE_FREE = {"en:lactose-free", "en:milk-free"}
 
+VEGAN_TOKENS = {
+    "vegan",
+    "vegetalien",
+    "vegetalienne",
+    "plantbased",
+    "plantbase",
+}
+VEGAN_PHRASES = {"plant based", "plant base"}
+
+VEGETARIAN_TOKENS = {
+    "vegetarian",
+    "vegetarien",
+    "vegetarienne",
+    "vegetal",
+    "vegetale",
+}
+
 ANALYSIS_VEGAN = {"en:vegan"}
 ANALYSIS_VEGETARIAN = {"en:vegetarian"}
 ANALYSIS_PESCETARIAN = {"en:pescetarian"}
@@ -173,6 +190,10 @@ def _tagset(values: Optional[Iterable[str]]) -> set[str]:
     return {str(value).strip().lower() for value in values if str(value).strip()}
 
 
+def _contains_phrase(text: str, phrases: set[str]) -> bool:
+    return any(phrase in text for phrase in phrases)
+
+
 class Command(BaseCommand):
     help = "Auto-tag compatibilities for OpenFoodFacts items using ingredients/tags."
 
@@ -205,6 +226,7 @@ class Command(BaseCommand):
             "ingredients_analysis_tags",
             "allergens_tags",
             "labels_tags",
+            "categories_tags",
             "vegan",
             "vegetarian",
             "pescetarian",
@@ -236,9 +258,23 @@ class Command(BaseCommand):
                 labels = _tagset(item.labels_tags)
                 analysis = _tagset(item.ingredients_analysis_tags)
                 allergens = _tagset(item.allergens_tags)
+                categories = _tagset(item.categories_tags)
 
                 ingredient_text = item.ingredients_text_fr or item.ingredients_text
                 tokens = _tokens(ingredient_text) if ingredient_text else _tokens(item.name or "")
+
+                keyword_text = _normalize(
+                    " ".join(value for value in [item.name, ingredient_text] if value)
+                )
+                keyword_tokens = set(keyword_text.split())
+                tag_text = _normalize(" ".join(list(labels) + list(categories)))
+
+                has_vegan_keyword = bool(keyword_tokens & VEGAN_TOKENS) or _contains_phrase(
+                    keyword_text, VEGAN_PHRASES
+                )
+                has_vegan_tag = any(token in tag_text for token in VEGAN_TOKENS)
+                has_vegetarian_keyword = bool(keyword_tokens & VEGETARIAN_TOKENS)
+                has_vegetarian_tag = any(token in tag_text for token in VEGETARIAN_TOKENS)
 
                 has_meat = bool(tokens & MEAT_TOKENS)
                 has_fish = bool(tokens & FISH_TOKENS) or bool(allergens & (ALLERGEN_FISH | ALLERGEN_SEAFOOD))
@@ -253,9 +289,14 @@ class Command(BaseCommand):
                 gluten_free = item.gluten_free
                 lactose_free = item.lactose_free
 
-                if labels & LABEL_VEGAN or analysis & ANALYSIS_VEGAN:
+                if labels & LABEL_VEGAN or analysis & ANALYSIS_VEGAN or has_vegan_keyword or has_vegan_tag:
                     vegan = True
-                if labels & LABEL_VEGETARIAN or analysis & ANALYSIS_VEGETARIAN:
+                if (
+                    labels & LABEL_VEGETARIAN
+                    or analysis & ANALYSIS_VEGETARIAN
+                    or has_vegetarian_keyword
+                    or has_vegetarian_tag
+                ):
                     vegetarian = True
                 if labels & LABEL_PESCETARIAN or analysis & ANALYSIS_PESCETARIAN:
                     pescetarian = True

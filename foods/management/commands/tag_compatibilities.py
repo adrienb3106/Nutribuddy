@@ -7,6 +7,24 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from foods.models import FoodItem
+from foods.compatibility_keywords import (
+    NAME_GLUTEN_FREE_FALSE_EN,
+    NAME_GLUTEN_FREE_FALSE_FR,
+    NAME_GLUTEN_FREE_TRUE_EN,
+    NAME_GLUTEN_FREE_TRUE_FR,
+    NAME_NON_PESCE_EN,
+    NAME_NON_PESCE_FR,
+    NAME_NON_VEGAN_EN_EXTRA,
+    NAME_NON_VEGAN_FR_EXTRA,
+    NAME_NON_VEGETARIAN_EN,
+    NAME_NON_VEGETARIAN_FR,
+    NAME_VEGAN_PHRASES_EN,
+    NAME_VEGAN_PHRASES_FR,
+    NAME_VEGAN_TOKENS_EN,
+    NAME_VEGAN_TOKENS_FR,
+    NAME_VEGETARIAN_TOKENS_EN,
+    NAME_VEGETARIAN_TOKENS_FR,
+)
 from foods.fodmap import classify_fodmap
 
 
@@ -43,130 +61,15 @@ DEFAULT_SUBGROUP_RULES = {
     }
 }
 
-NAME_GLUTEN_FREE_TRUE = {
-    "riz",
-    "maïs",
-    "mais",
-    "sarrasin",
-    "quinoa",
-    "mil",
-    "sorgho",
-    "teff",
-}
-
-NAME_GLUTEN_FREE_FALSE = {
-    "ble",
-    "blé",
-    "orge",
-    "seigle",
-    "avoine",
-    "epeautre",
-    "épeautre",
-    "triticale",
-}
-
-NAME_NON_VEGETARIAN = {
-    "poisson",
-    "saumon",
-    "thon",
-    "sardine",
-    "maquereau",
-    "truite",
-    "cabillaud",
-    "morue",
-    "hareng",
-    "anchois",
-    "surimi",
-    "crevette",
-    "crustace",
-    "crustaces",
-    "moule",
-    "moules",
-    "huitre",
-    "huitres",
-    "calamar",
-    "calamars",
-    "encornet",
-    "seiche",
-    "poulpe",
-    "viande",
-    "boeuf",
-    "boeufs",
-    "bœuf",
-    "porc",
-    "cochon",
-    "jambon",
-    "lard",
-    "bacon",
-    "poulet",
-    "dinde",
-    "canard",
-    "agneau",
-    "mouton",
-    "veau",
-    "lapin",
-    "gibier",
-    "steak",
-    "saucisse",
-    "saucisson",
-    "charcuterie",
-    "foie",
-    "abats",
-    "poitrine",
-}
-
-NAME_NON_VEGAN = NAME_NON_VEGETARIAN | {
-    "oeuf",
-    "oeufs",
-    "œuf",
-    "œufs",
-    "lait",
-    "lactose",
-    "fromage",
-    "beurre",
-    "creme",
-    "crème",
-    "yaourt",
-    "yogourt",
-    "yogourt",
-    "yogurt",
-    "miel",
-    "caseine",
-    "caséine",
-    "lactoserum",
-    "lactosérum",
-    "petit_lait",
-    "whey",
-    "gelatine",
-    "gélatine",
-}
-
-NAME_NON_PESCE = {
-    "viande",
-    "boeuf",
-    "boeufs",
-    "bœuf",
-    "porc",
-    "cochon",
-    "jambon",
-    "lard",
-    "bacon",
-    "poulet",
-    "dinde",
-    "canard",
-    "agneau",
-    "mouton",
-    "veau",
-    "lapin",
-    "gibier",
-    "steak",
-    "saucisse",
-    "saucisson",
-    "charcuterie",
-    "foie",
-    "abats",
-    "poitrine",
-}
+# Merge FR/EN keyword lists for tagging.
+NAME_GLUTEN_FREE_TRUE = NAME_GLUTEN_FREE_TRUE_FR | NAME_GLUTEN_FREE_TRUE_EN
+NAME_GLUTEN_FREE_FALSE = NAME_GLUTEN_FREE_FALSE_FR | NAME_GLUTEN_FREE_FALSE_EN
+NAME_VEGAN_TOKENS = NAME_VEGAN_TOKENS_FR | NAME_VEGAN_TOKENS_EN
+NAME_VEGAN_PHRASES = NAME_VEGAN_PHRASES_FR | NAME_VEGAN_PHRASES_EN
+NAME_VEGETARIAN_TOKENS = NAME_VEGETARIAN_TOKENS_FR | NAME_VEGETARIAN_TOKENS_EN
+NAME_NON_VEGETARIAN = NAME_NON_VEGETARIAN_FR | NAME_NON_VEGETARIAN_EN
+NAME_NON_VEGAN = NAME_NON_VEGETARIAN | NAME_NON_VEGAN_FR_EXTRA | NAME_NON_VEGAN_EN_EXTRA
+NAME_NON_PESCE = NAME_NON_PESCE_FR | NAME_NON_PESCE_EN
 
 
 def _normalize(text: str) -> str:
@@ -225,6 +128,14 @@ def _apply_name_overrides(item: FoodItem) -> None:
     if not item.name:
         return
     name = _normalize_plain(item.name)
+    normalized = _normalize(item.name)
+    tokens = set(normalized.split("_"))
+
+    if tokens & NAME_VEGAN_TOKENS or any(phrase in normalized for phrase in NAME_VEGAN_PHRASES):
+        item.vegan = True
+    if tokens & NAME_VEGETARIAN_TOKENS:
+        item.vegetarian = True
+
     if any(token in name for token in NAME_NON_VEGAN):
         item.vegan = False
     if any(token in name for token in NAME_NON_VEGETARIAN):

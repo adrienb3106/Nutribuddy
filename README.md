@@ -114,6 +114,22 @@ FODMAP tagging is included in both commands. The keyword lists live in
 `foods/fodmap.py` and the result is stored in `irritability_level` as
 `low_fodmap` or `high_fodmap` (unknown stays null).
 
+**Mettre à jour les compatibilités (règles/keywords)**
+- CIQUAL (noms produits) : les listes FR/EN sont dans
+  `foods/compatibility_keywords.py` (déjà normalisées, sans accents). Mettez
+  à jour ces listes pour ajuster vegan/végétarien/pescetarien/gluten/lactose.
+- Open Food Facts : les règles de labels/analyse et les mots‑clés live dans
+  `foods/management/commands/tag_openfoodfacts_compatibilities.py`.
+- FODMAP : listes low/high dans `foods/fodmap.py`.
+
+Après modification, relancer le tagging :
+```bash
+docker compose exec web python manage.py tag_compatibilities
+```
+```bash
+docker compose exec web python manage.py tag_openfoodfacts_compatibilities
+```
+
 **Data cleanup (aberrant foods)**
 You can scan and optionally delete rows with placeholder or nonsensical names.
 

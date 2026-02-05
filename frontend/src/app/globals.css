@@ -295,6 +295,10 @@ main {
   color: #7a3b10;
 }
 
+.card.clickable {
+  cursor: pointer;
+}
+
 .tag-fodmap-low {
   border-color: rgba(26, 140, 88, 0.35);
   background: rgba(26, 140, 88, 0.12);
