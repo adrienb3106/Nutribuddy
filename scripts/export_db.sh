@@ -24,12 +24,16 @@ EOF
 }
 
 compose_env_file=""
+compose_file="${COMPOSE_FILE:-}"
 if [ -f ".env.prod" ]; then
   set -a
   # shellcheck disable=SC1091
   . ./.env.prod
   set +a
   compose_env_file=".env.prod"
+  if [ -z "$compose_file" ] && [ -f "docker-compose.prod.yml" ]; then
+    compose_file="docker-compose.prod.yml"
+  fi
 elif [ -f ".env" ]; then
   set -a
   # shellcheck disable=SC1091
@@ -56,8 +60,12 @@ require_env "POSTGRES_USER"
 require_env "POSTGRES_DB"
 
 compose() {
-  if [ -n "$compose_env_file" ]; then
+  if [ -n "$compose_env_file" ] && [ -n "$compose_file" ]; then
+    docker compose --env-file "$compose_env_file" -f "$compose_file" "$@"
+  elif [ -n "$compose_env_file" ]; then
     docker compose --env-file "$compose_env_file" "$@"
+  elif [ -n "$compose_file" ]; then
+    docker compose -f "$compose_file" "$@"
   else
     docker compose "$@"
   fi

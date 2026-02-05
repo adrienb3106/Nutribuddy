@@ -29,6 +29,22 @@ if [ ! -f ".env.prod" ]; then
   exit 1
 fi
 
+set -a
+# shellcheck disable=SC1091
+. ./.env.prod
+set +a
+
+require_env() {
+  local name="$1"
+  if [ -z "${!name:-}" ]; then
+    echo "Missing env var: $name"
+    exit 1
+  fi
+}
+
+require_env "POSTGRES_USER"
+require_env "POSTGRES_DB"
+
 db_dump=""
 clean="false"
 do_build="true"
@@ -79,6 +95,22 @@ if [ -n "$db_dump" ]; then
   else
     scripts/restore_db.sh --input "$db_dump"
   fi
+fi
+
+log "Waiting for database"
+max_attempts=30
+delay_seconds=2
+db_ready="false"
+for i in $(seq 1 "$max_attempts"); do
+  if compose exec -T db pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" > /dev/null 2>&1; then
+    db_ready="true"
+    break
+  fi
+  sleep "$delay_seconds"
+done
+if [ "$db_ready" != "true" ]; then
+  echo "Postgres is not ready after $((max_attempts * delay_seconds)) seconds."
+  exit 1
 fi
 
 log "Running migrations"

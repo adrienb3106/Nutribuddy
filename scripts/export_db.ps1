@@ -50,9 +50,13 @@ function Require-Env {
 }
 
 $ComposeEnvFile = $null
+$ComposeFile = $env:COMPOSE_FILE
 if (Test-Path ".env.prod") {
     Load-EnvFile ".env.prod"
     $ComposeEnvFile = ".env.prod"
+    if (-not $ComposeFile -and (Test-Path "docker-compose.prod.yml")) {
+        $ComposeFile = "docker-compose.prod.yml"
+    }
 } elseif (Test-Path ".env") {
     Load-EnvFile ".env"
     $ComposeEnvFile = ".env"
@@ -63,8 +67,12 @@ if (Test-Path ".env.prod") {
 
 function Invoke-Compose {
     param([Parameter(ValueFromRemainingArguments = $true)] $Args)
-    if ($ComposeEnvFile) {
+    if ($ComposeEnvFile -and $ComposeFile) {
+        docker compose --env-file $ComposeEnvFile -f $ComposeFile @Args
+    } elseif ($ComposeEnvFile) {
         docker compose --env-file $ComposeEnvFile @Args
+    } elseif ($ComposeFile) {
+        docker compose -f $ComposeFile @Args
     } else {
         docker compose @Args
     }
@@ -95,7 +103,12 @@ if ($Format -eq "custom" -and -not $Output.EndsWith(".dump")) {
 }
 
 Write-Step "Checking database readiness"
-Invoke-Compose exec -T db pg_isready -U $env:POSTGRES_USER -d $env:POSTGRES_DB | Out-Null
+$readyArgs = @(
+    "pg_isready",
+    "-U", $env:POSTGRES_USER,
+    "-d", $env:POSTGRES_DB
+)
+Invoke-Compose exec -T db @readyArgs | Out-Null
 if ($LASTEXITCODE -ne 0) {
     throw "Postgres is not ready."
 }
