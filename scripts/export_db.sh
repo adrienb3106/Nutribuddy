@@ -19,20 +19,29 @@ Defaults:
 
 Notes:
   - custom format is recommended for large databases
-  - this script reads .env (or .env.example) for POSTGRES_* values
+  - this script reads .env.prod, .env (or .env.example) for POSTGRES_* values
 EOF
 }
 
-if [ -f ".env" ]; then
+compose_env_file=""
+if [ -f ".env.prod" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . ./.env.prod
+  set +a
+  compose_env_file=".env.prod"
+elif [ -f ".env" ]; then
   set -a
   # shellcheck disable=SC1091
   . ./.env
   set +a
+  compose_env_file=".env"
 elif [ -f ".env.example" ]; then
   set -a
   # shellcheck disable=SC1091
   . ./.env.example
   set +a
+  compose_env_file=".env.example"
 fi
 
 require_env() {
@@ -45,6 +54,14 @@ require_env() {
 
 require_env "POSTGRES_USER"
 require_env "POSTGRES_DB"
+
+compose() {
+  if [ -n "$compose_env_file" ]; then
+    docker compose --env-file "$compose_env_file" "$@"
+  else
+    docker compose "$@"
+  fi
+}
 
 timestamp="$(date +%Y%m%d_%H%M%S)"
 output="backups/nutribuddy_${timestamp}.dump"
@@ -88,10 +105,10 @@ else
 fi
 
 log "Checking database readiness"
-docker compose exec -T db pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" > /dev/null
+compose exec -T db pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" > /dev/null
 
 log "Exporting database to $output"
-docker compose exec -T db pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" "${dump_args[@]}" > "$output"
+compose exec -T db pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" "${dump_args[@]}" > "$output"
 
 log "Done"
 echo "Dump file: $output"

@@ -71,6 +71,53 @@ docker compose exec web python manage.py migrate
 docker compose exec web python manage.py createsuperuser
 ```
 
+**Production (Docker)**
+This repo includes a production compose file and Dockerfiles that use gunicorn
+and `next start` (no dev servers). For NAS/Synology, put a reverse proxy in
+front and expose only HTTPS.
+
+1. Copy and edit prod env file:
+```bash
+cp .env.prod.example .env.prod
+```
+2. Build and start:
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml up --build -d
+```
+3. Run migrations and create admin:
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec web python manage.py migrate
+```
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec web python manage.py createsuperuser
+```
+
+One-command prod deploy (Linux):
+```bash
+scripts/deploy_prod.sh
+```
+
+One-command prod deploy (PowerShell):
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/deploy_prod.ps1
+```
+
+Restore from a dump during deploy:
+```bash
+scripts/deploy_prod.sh --db-dump backups/nutribuddy_20260101_120000.dump --clean
+```
+
+Restore later (prod compose):
+```bash
+COMPOSE_FILE=docker-compose.prod.yml scripts/restore_db.sh --input backups/nutribuddy_20260101_120000.dump --clean
+```
+
+Notes:
+- Do not expose the database port to the Internet.
+- Set strong `DJANGO_SECRET_KEY` and `POSTGRES_PASSWORD`.
+- Use a reverse proxy with HTTPS and set `DJANGO_ALLOWED_HOSTS`,
+  `CSRF_TRUSTED_ORIGINS`, and `CORS_ALLOWED_ORIGINS` to your domain.
+
 **Data Sources**
 CIQUAL is used for base food items. Open Food Facts (OFF) provides packaged products. OFF imports are heavier and optional.
 

@@ -20,20 +20,29 @@ Options:
 Notes:
   - .dump uses pg_restore
   - .sql uses psql
-  - this script reads .env (or .env.example) for POSTGRES_* values
+  - this script reads .env.prod, .env (or .env.example) for POSTGRES_* values
 EOF
 }
 
-if [ -f ".env" ]; then
+compose_env_file=""
+if [ -f ".env.prod" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . ./.env.prod
+  set +a
+  compose_env_file=".env.prod"
+elif [ -f ".env" ]; then
   set -a
   # shellcheck disable=SC1091
   . ./.env
   set +a
+  compose_env_file=".env"
 elif [ -f ".env.example" ]; then
   set -a
   # shellcheck disable=SC1091
   . ./.env.example
   set +a
+  compose_env_file=".env.example"
 fi
 
 require_env() {
@@ -46,6 +55,14 @@ require_env() {
 
 require_env "POSTGRES_USER"
 require_env "POSTGRES_DB"
+
+compose() {
+  if [ -n "$compose_env_file" ]; then
+    docker compose --env-file "$compose_env_file" "$@"
+  else
+    docker compose "$@"
+  fi
+}
 
 input=""
 clean="false"
@@ -84,7 +101,7 @@ if [ ! -f "$input" ]; then
 fi
 
 log "Checking database readiness"
-docker compose exec -T db pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" > /dev/null
+compose exec -T db pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" > /dev/null
 
 ext="${input##*.}"
 if [ "$ext" = "sql" ]; then
@@ -92,14 +109,14 @@ if [ "$ext" = "sql" ]; then
     echo "Warning: --clean is ignored for .sql dumps (use a clean database)."
   fi
   log "Restoring plain SQL dump"
-  docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" < "$input"
+  compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" < "$input"
 else
   log "Restoring custom dump"
   restore_args=("--no-owner" "--no-acl" "-U" "$POSTGRES_USER" "-d" "$POSTGRES_DB")
   if [ "$clean" = "true" ]; then
     restore_args+=("--clean" "--if-exists")
   fi
-  docker compose exec -T db pg_restore "${restore_args[@]}" < "$input"
+  compose exec -T db pg_restore "${restore_args[@]}" < "$input"
 fi
 
 log "Done"
