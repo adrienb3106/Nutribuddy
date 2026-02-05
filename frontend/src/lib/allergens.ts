@@ -175,10 +175,24 @@ const RULES: Record<
 const normalize = (text: string) =>
   text
     .toLowerCase()
-    .replace(/œ/g, "oe")
-    .replace(/æ/g, "ae")
+    .replace(/\u0153/g, "oe")
+    .replace(/\u00e6/g, "ae")
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+const isNegated = (haystack: string, token: string) => {
+  if (!token) return false;
+  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const patterns = [
+    new RegExp(`(?:^|\\s)sans(?:\\s+\\w+){0,2}\\s+${escaped}(?:\\s|$)`),
+    new RegExp(`(?:^|\\s)without(?:\\s+\\w+){0,2}\\s+${escaped}(?:\\s|$)`),
+    new RegExp(`(?:^|\\s)${escaped}\\s+free(?:\\s|$)`),
+    new RegExp(`(?:^|\\s)free\\s+from(?:\\s+\\w+){0,2}\\s+${escaped}(?:\\s|$)`),
+  ];
+  return patterns.some((pattern) => pattern.test(haystack));
+};
 
 export function detectAllergens(
   item: {
@@ -198,9 +212,11 @@ export function detectAllergens(
   const matches: string[] = [];
   for (const key of selected) {
     const rule = RULES[key];
+    const normalizedTokens = rule.tokens.map((token) => normalize(token));
+    const isRuleNegated = normalizedTokens.some((token) => isNegated(haystack, token));
     const hasTag = rule.tags.some((tag) => tags.has(tag));
-    const hasToken = rule.tokens.some((token) => haystack.includes(normalize(token)));
-    if (hasTag || hasToken) {
+    const hasToken = normalizedTokens.some((token) => haystack.includes(token));
+    if ((hasTag || hasToken) && !isRuleNegated) {
       const label = ALLERGEN_OPTIONS.find((opt) => opt.key === key)?.label ?? key;
       matches.push(label);
     }

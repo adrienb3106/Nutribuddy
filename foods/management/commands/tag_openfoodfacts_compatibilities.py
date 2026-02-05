@@ -1,8 +1,8 @@
+import re
 import unicodedata
 from typing import Iterable, Optional
 
 from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
 
 from foods.models import FoodItem
 from foods.fodmap import classify_fodmap
@@ -13,6 +13,8 @@ LABEL_VEGETARIAN = {"en:vegetarian", "en:meat-alternatives"}
 LABEL_PESCETARIAN = {"en:pescetarian"}
 LABEL_GLUTEN_FREE = {"en:gluten-free", "en:no-gluten"}
 LABEL_LACTOSE_FREE = {"en:lactose-free", "en:milk-free"}
+
+BATCH_SIZE_DEFAULT = 1000
 
 VEGAN_TOKENS = {
     "vegan",
@@ -194,12 +196,43 @@ def _contains_phrase(text: str, phrases: set[str]) -> bool:
     return any(phrase in text for phrase in phrases)
 
 
+def _compile_negation_patterns(token: str) -> tuple[re.Pattern, ...]:
+    escaped = re.escape(token)
+    return (
+        re.compile(rf"(?:^|\s)sans(?:\s+\w+){{0,2}}\s+{escaped}(?:\s|$)"),
+        re.compile(rf"(?:^|\s)without(?:\s+\w+){{0,2}}\s+{escaped}(?:\s|$)"),
+        re.compile(rf"(?:^|\s){escaped}\s+free(?:\s|$)"),
+        re.compile(rf"(?:^|\s)free\s+from(?:\s+\w+){{0,2}}\s+{escaped}(?:\s|$)"),
+    )
+
+
+_NEGATION_REGEXES = {
+    token: _compile_negation_patterns(token)
+    for token in ("gluten", "lactose", "lait", "milk")
+}
+
+
+def _is_negated(text: str, token: str) -> bool:
+    if not text or token not in text:
+        return False
+    regexes = _NEGATION_REGEXES.get(token)
+    if not regexes:
+        return False
+    return any(pattern.search(text) for pattern in regexes)
+
+
 class Command(BaseCommand):
     help = "Auto-tag compatibilities for OpenFoodFacts items using ingredients/tags."
 
     def add_arguments(self, parser):
         parser.add_argument("--dry-run", action="store_true", help="Parse only, no DB writes")
         parser.add_argument("--limit", type=int, default=None, help="Limit number of rows")
+        parser.add_argument(
+            "--batch-size",
+            type=int,
+            default=BATCH_SIZE_DEFAULT,
+            help="Bulk update batch size.",
+        )
         parser.add_argument(
             "--only-if-default",
             action="store_true",
@@ -215,6 +248,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         dry_run = options["dry_run"]
         limit = options["limit"]
+        batch_size = options["batch_size"]
         only_if_default = options["only_if_default"]
         log_every = options["log_every"]
 
@@ -240,136 +274,168 @@ class Command(BaseCommand):
         processed = 0
         updated = 0
         skipped = 0
+        pending_updates: list[FoodItem] = []
+        update_fields = [
+            "vegan",
+            "vegetarian",
+            "pescetarian",
+            "gluten_free",
+            "lactose_free",
+            "irritability_level",
+        ]
 
-        with transaction.atomic():
-            for item in qs:
-                processed += 1
-                if only_if_default and (
-                    item.vegan
-                    or item.vegetarian
-                    or item.pescetarian
-                    or item.gluten_free
-                    or item.lactose_free
-                    or item.irritability_level
-                ):
-                    skipped += 1
-                    continue
+        def flush_updates():
+            if pending_updates:
+                FoodItem.objects.bulk_update(pending_updates, update_fields)
+                pending_updates.clear()
 
-                labels = _tagset(item.labels_tags)
-                analysis = _tagset(item.ingredients_analysis_tags)
-                allergens = _tagset(item.allergens_tags)
-                categories = _tagset(item.categories_tags)
+        for item in qs.iterator(chunk_size=batch_size):
+            processed += 1
+            if only_if_default and (
+                item.vegan
+                or item.vegetarian
+                or item.pescetarian
+                or item.gluten_free
+                or item.lactose_free
+                or item.irritability_level
+            ):
+                skipped += 1
+                continue
 
-                ingredient_text = item.ingredients_text_fr or item.ingredients_text
-                tokens = _tokens(ingredient_text) if ingredient_text else _tokens(item.name or "")
+            labels = _tagset(item.labels_tags)
+            analysis = _tagset(item.ingredients_analysis_tags)
+            allergens = _tagset(item.allergens_tags)
+            categories = _tagset(item.categories_tags)
 
-                keyword_text = _normalize(
-                    " ".join(value for value in [item.name, ingredient_text] if value)
-                )
-                keyword_tokens = set(keyword_text.split())
-                tag_text = _normalize(" ".join(list(labels) + list(categories)))
+            ingredient_text = item.ingredients_text_fr or item.ingredients_text
+            if not (item.name or ingredient_text or labels or analysis or allergens or categories):
+                skipped += 1
+                continue
 
-                has_vegan_keyword = bool(keyword_tokens & VEGAN_TOKENS) or _contains_phrase(
-                    keyword_text, VEGAN_PHRASES
-                )
-                has_vegan_tag = any(token in tag_text for token in VEGAN_TOKENS)
-                has_vegetarian_keyword = bool(keyword_tokens & VEGETARIAN_TOKENS)
-                has_vegetarian_tag = any(token in tag_text for token in VEGETARIAN_TOKENS)
+            ingredient_source = ingredient_text or item.name or ""
+            ingredient_norm = _normalize(ingredient_source)
+            tokens = set(ingredient_norm.split()) if ingredient_norm else set()
 
-                has_meat = bool(tokens & MEAT_TOKENS)
-                has_fish = bool(tokens & FISH_TOKENS) or bool(allergens & (ALLERGEN_FISH | ALLERGEN_SEAFOOD))
-                has_eggs = bool(tokens & EGG_TOKENS) or bool(allergens & ALLERGEN_EGGS)
-                has_dairy = bool(tokens & DAIRY_TOKENS) or bool(allergens & ALLERGEN_MILK)
-                has_honey_gelatin = bool(tokens & HONEY_GELATIN_TOKENS)
-                has_gluten = bool(tokens & GLUTEN_TOKENS) or bool(allergens & ALLERGEN_GLUTEN)
+            keyword_source = " ".join(value for value in [item.name, ingredient_text] if value)
+            keyword_text = _normalize(keyword_source)
+            keyword_tokens = set(keyword_text.split())
+            tag_text = _normalize(" ".join(labels | categories))
+            tag_tokens = set(tag_text.split()) if tag_text else set()
 
-                vegan = item.vegan
-                vegetarian = item.vegetarian
-                pescetarian = item.pescetarian
-                gluten_free = item.gluten_free
-                lactose_free = item.lactose_free
+            negated_gluten = _is_negated(keyword_text, "gluten")
+            negated_lactose = (
+                _is_negated(keyword_text, "lactose")
+                or _is_negated(keyword_text, "lait")
+                or _is_negated(keyword_text, "milk")
+            )
 
-                if labels & LABEL_VEGAN or analysis & ANALYSIS_VEGAN or has_vegan_keyword or has_vegan_tag:
-                    vegan = True
-                if (
-                    labels & LABEL_VEGETARIAN
-                    or analysis & ANALYSIS_VEGETARIAN
-                    or has_vegetarian_keyword
-                    or has_vegetarian_tag
-                ):
-                    vegetarian = True
-                if labels & LABEL_PESCETARIAN or analysis & ANALYSIS_PESCETARIAN:
-                    pescetarian = True
-                if labels & LABEL_GLUTEN_FREE:
+            gluten_free_label = bool(labels & LABEL_GLUTEN_FREE) or negated_gluten
+            lactose_free_label = bool(labels & LABEL_LACTOSE_FREE) or negated_lactose
+
+            has_vegan_keyword = bool(keyword_tokens & VEGAN_TOKENS) or _contains_phrase(
+                keyword_text, VEGAN_PHRASES
+            )
+            has_vegan_tag = bool(tag_tokens & VEGAN_TOKENS) or _contains_phrase(
+                tag_text, VEGAN_PHRASES
+            )
+            has_vegetarian_keyword = bool(keyword_tokens & VEGETARIAN_TOKENS)
+            has_vegetarian_tag = bool(tag_tokens & VEGETARIAN_TOKENS)
+
+            has_meat = bool(tokens & MEAT_TOKENS)
+            has_fish = bool(tokens & FISH_TOKENS) or bool(allergens & (ALLERGEN_FISH | ALLERGEN_SEAFOOD))
+            has_eggs = bool(tokens & EGG_TOKENS) or bool(allergens & ALLERGEN_EGGS)
+            has_dairy = bool(tokens & DAIRY_TOKENS) or bool(allergens & ALLERGEN_MILK)
+            has_honey_gelatin = bool(tokens & HONEY_GELATIN_TOKENS)
+            has_gluten = bool(tokens & GLUTEN_TOKENS) or bool(allergens & ALLERGEN_GLUTEN)
+
+            vegan = item.vegan
+            vegetarian = item.vegetarian
+            pescetarian = item.pescetarian
+            gluten_free = item.gluten_free
+            lactose_free = item.lactose_free
+
+            if labels & LABEL_VEGAN or analysis & ANALYSIS_VEGAN or has_vegan_keyword or has_vegan_tag:
+                vegan = True
+            if (
+                labels & LABEL_VEGETARIAN
+                or analysis & ANALYSIS_VEGETARIAN
+                or has_vegetarian_keyword
+                or has_vegetarian_tag
+            ):
+                vegetarian = True
+            if labels & LABEL_PESCETARIAN or analysis & ANALYSIS_PESCETARIAN:
+                pescetarian = True
+            if labels & LABEL_GLUTEN_FREE:
+                gluten_free = True
+            if labels & LABEL_LACTOSE_FREE:
+                lactose_free = True
+
+            if analysis & ANALYSIS_NON_VEGAN or has_meat or has_fish or has_eggs or has_dairy or has_honey_gelatin:
+                vegan = False
+            if analysis & ANALYSIS_NON_VEGETARIAN or has_meat or has_fish:
+                vegetarian = False
+            if analysis & ANALYSIS_NON_PESCETARIAN or has_meat:
+                pescetarian = False
+            if has_gluten and not gluten_free_label:
+                gluten_free = False
+            if has_dairy and not lactose_free_label:
+                lactose_free = False
+
+            if vegan:
+                vegetarian = True
+                pescetarian = True
+            elif vegetarian:
+                pescetarian = True
+
+            if not ingredient_text:
+                name_tokens = _tokens(item.name or "")
+                if name_tokens & NAME_GLUTEN_FREE_TRUE and not has_gluten:
                     gluten_free = True
-                if labels & LABEL_LACTOSE_FREE:
-                    lactose_free = True
 
-                if analysis & ANALYSIS_NON_VEGAN or has_meat or has_fish or has_eggs or has_dairy or has_honey_gelatin:
-                    vegan = False
-                if analysis & ANALYSIS_NON_VEGETARIAN or has_meat or has_fish:
-                    vegetarian = False
-                if analysis & ANALYSIS_NON_PESCETARIAN or has_meat:
-                    pescetarian = False
-                if has_gluten:
-                    gluten_free = False
-                if has_dairy:
-                    lactose_free = False
+            fodmap_source = " ".join(
+                value
+                for value in [item.name, item.ingredients_text_fr, item.ingredients_text]
+                if value
+            )
+            fodmap_value = classify_fodmap(fodmap_source) if fodmap_source else None
+            new_irritability = fodmap_value if fodmap_value else item.irritability_level
 
-                if not ingredient_text:
-                    name_tokens = _tokens(item.name or "")
-                    if name_tokens & NAME_GLUTEN_FREE_TRUE and not has_gluten:
-                        gluten_free = True
+            if (
+                vegan == item.vegan
+                and vegetarian == item.vegetarian
+                and pescetarian == item.pescetarian
+                and gluten_free == item.gluten_free
+                and lactose_free == item.lactose_free
+                and new_irritability == item.irritability_level
+            ):
+                skipped += 1
+                continue
 
-                fodmap_source = " ".join(
-                    value
-                    for value in [item.name, item.ingredients_text_fr, item.ingredients_text]
-                    if value
+            item.vegan = vegan
+            item.vegetarian = vegetarian
+            item.pescetarian = pescetarian
+            item.gluten_free = gluten_free
+            item.lactose_free = lactose_free
+            if fodmap_value:
+                item.irritability_level = new_irritability
+            updated += 1
+
+            if not dry_run:
+                pending_updates.append(item)
+                if len(pending_updates) >= batch_size:
+                    flush_updates()
+
+            if log_every and processed % log_every == 0:
+                self.stdout.write(
+                    f"processed={processed} updated={updated} skipped={skipped}"
                 )
-                fodmap_value = classify_fodmap(fodmap_source)
-                new_irritability = (
-                    fodmap_value if fodmap_value else item.irritability_level
-                )
 
-                if (
-                    vegan == item.vegan
-                    and vegetarian == item.vegetarian
-                    and pescetarian == item.pescetarian
-                    and gluten_free == item.gluten_free
-                    and lactose_free == item.lactose_free
-                    and new_irritability == item.irritability_level
-                ):
-                    skipped += 1
-                    continue
+        if dry_run:
+            raise CommandError(
+                f"Dry run requested. processed={processed}, updated={updated}, skipped={skipped}"
+            )
 
-                item.vegan = vegan
-                item.vegetarian = vegetarian
-                item.pescetarian = pescetarian
-                item.gluten_free = gluten_free
-                item.lactose_free = lactose_free
-                if fodmap_value:
-                    item.irritability_level = new_irritability
-                item.save(
-                    update_fields=[
-                        "vegan",
-                        "vegetarian",
-                        "pescetarian",
-                        "gluten_free",
-                        "lactose_free",
-                        "irritability_level",
-                    ]
-                )
-                updated += 1
-
-                if log_every and processed % log_every == 0:
-                    self.stdout.write(
-                        f"processed={processed} updated={updated} skipped={skipped}"
-                    )
-
-            if dry_run:
-                raise CommandError(
-                    f"Dry run requested. processed={processed}, updated={updated}, skipped={skipped}"
-                )
+        flush_updates()
 
         self.stdout.write(
             self.style.SUCCESS(

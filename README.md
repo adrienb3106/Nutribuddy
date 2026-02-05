@@ -5,6 +5,9 @@ Django backend (REST API) + Next.js frontend for a food app.
 **Overview**
 Nutribuddy provides a clean API to store foods/products, search/filter by nutrition, and tag dietary compatibilities. The V1 focuses on simple, evolvable modeling and a working Docker stack.
 
+**Credits**
+Developed by Adrien Bangma. Core technologies and tools: Python, Django/DRF, PostgreSQL, Docker, Next.js, TypeScript.
+
 **Prerequisites**
 - Docker Desktop (Compose v2)
 - PowerShell for the one-command deploy script
@@ -108,6 +111,10 @@ docker compose exec web python manage.py tag_compatibilities
 Open Food Facts tagging (ingredients + labels + allergens):
 ```bash
 docker compose exec web python manage.py tag_openfoodfacts_compatibilities --log-every 10000
+```
+If you need more speed, increase batch size (uses more RAM):
+```bash
+docker compose exec web python manage.py tag_openfoodfacts_compatibilities --log-every 10000 --batch-size 2000
 ```
 
 FODMAP tagging is included in both commands. The keyword lists live in

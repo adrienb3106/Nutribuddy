@@ -31,18 +31,19 @@ export default function LoginPage() {
       });
       setToken(data.access);
       setRefreshToken(data.refresh);
-      setStatus("Connecté. Les jetons sont stockés dans votre navigateur.");
+      setStatus("Connecte. Vos jetons sont stockes dans votre navigateur.");
       setForm({ username: "", password: "" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Échec de la connexion");
+      setError(err instanceof Error ? err.message : "Echec de la connexion");
     }
   };
 
   return (
-    <section className="grid">
-      <div className="card">
+    <section className="auth-layout">
+      <div className="panel">
+        <span className="badge">Acces securise</span>
         <h1 className="section-title">Bon retour</h1>
-        <p className="notice">Utilisez vos identifiants pour accéder à votre profil.</p>
+        <p className="notice">Connectez-vous pour acceder a votre profil.</p>
         <div className="divider" />
         <form className="form" onSubmit={onSubmit}>
           <label className="label">Nom d'utilisateur</label>
@@ -67,9 +68,11 @@ export default function LoginPage() {
           {error ? <p className="notice">{error}</p> : null}
         </form>
       </div>
-      <div className="card">
+      <div className="panel">
         <h2 className="section-title">Pas encore de compte ?</h2>
-        <p className="notice">Créez votre profil en moins d'une minute.</p>
+        <p className="notice">
+          Creez votre profil en moins d'une minute pour activer les filtres.
+        </p>
         <a className="button secondary" href="/register">
           Inscription
         </a>
