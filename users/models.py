@@ -11,6 +11,8 @@ class UserProfile(models.Model):
     gluten_free = models.BooleanField(default=False)
     lactose_free = models.BooleanField(default=False)
     irritability_level = models.PositiveSmallIntegerField(default=0)
+    allergens = models.JSONField(default=list, blank=True)
+    filter_allergens = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { apiFetch } from "@/lib/api";
+import { detectAllergens, type AllergenKey } from "@/lib/allergens";
 import { getToken } from "@/lib/auth";
 
 interface FoodItem {
@@ -59,6 +60,8 @@ interface Profile {
   gluten_free: boolean;
   lactose_free: boolean;
   irritability_level: number;
+  allergens: AllergenKey[];
+  filter_allergens: boolean;
 }
 
 const DEFAULT_FILTERS = {
@@ -79,8 +82,16 @@ const DEFAULT_FILTERS = {
 const SOURCE_LABELS: Record<string, string> = {
   ciqual: "Ciqual",
   openfoodfacts: "Open Food Facts",
-  manual: "Manual",
+  manual: "Manuel",
 };
+
+const RESTRICTION_LABELS = {
+  vegan: "Vegan",
+  vegetarian: "Végétarien",
+  pescetarian: "Pescétarien",
+  gluten_free: "Sans gluten",
+  lactose_free: "Sans lactose",
+} as const;
 
 export default function FoodsPage() {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
@@ -91,9 +102,13 @@ export default function FoodsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [applyProfile, setApplyProfile] = useState(false);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [profileAllergens, setProfileAllergens] = useState<AllergenKey[]>([]);
+  const [profileFilterAllergens, setProfileFilterAllergens] = useState(false);
   const [selectedItem, setSelectedItem] = useState<FoodItem | null>(null);
   const [brandSuggestions, setBrandSuggestions] = useState<string[]>([]);
   const [brandLoading, setBrandLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -108,15 +123,25 @@ export default function FoodsPage() {
     if (filters.irritability_max) {
       params.set("irritability_max", filters.irritability_max);
     }
+    if (applyProfile && profileFilterAllergens && profileAllergens.length > 0) {
+      params.set("exclude_allergens", "true");
+      params.set("allergens", profileAllergens.join(","));
+    }
     ("vegan vegetarian pescetarian gluten_free lactose_free" as const)
       .split(" ")
       .forEach((key) => {
         if (filters[key]) params.set(key, "true");
       });
     return params.toString();
-  }, [filters, page, ordering]);
+  }, [applyProfile, filters, page, ordering, profileAllergens, profileFilterAllergens]);
 
   useEffect(() => {
+    if (!hasSearched) {
+      setItems([]);
+      setCount(0);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -125,9 +150,9 @@ export default function FoodsPage() {
         setItems(data.results);
         setCount(data.count);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed"))
+      .catch((err) => setError(err instanceof Error ? err.message : "Échec du chargement"))
       .finally(() => setLoading(false));
-  }, [queryString]);
+  }, [hasSearched, queryString]);
 
   useEffect(() => {
     const query = filters.brand.trim();
@@ -147,17 +172,37 @@ export default function FoodsPage() {
   }, [filters.brand]);
 
   useEffect(() => {
+    setAuthToken(getToken());
+  }, []);
+
+  useEffect(() => {
+    if (!authToken) {
+      setProfileAllergens([]);
+      setProfileFilterAllergens(false);
+      return;
+    }
+    apiFetch<Profile>("/api/auth/profile/", {}, authToken)
+      .then((profile) => {
+        setProfileAllergens(profile.allergens || []);
+        setProfileFilterAllergens(!!profile.filter_allergens);
+      })
+      .catch(() => {
+        setProfileAllergens([]);
+        setProfileFilterAllergens(false);
+      });
+  }, [authToken]);
+
+  useEffect(() => {
     if (!applyProfile) {
       return;
     }
-    const token = getToken();
-    if (!token) {
-      setError("Log in to apply your dietary profile.");
+    if (!authToken) {
+      setError("Connectez-vous pour appliquer votre profil alimentaire.");
       setApplyProfile(false);
       return;
     }
 
-    apiFetch<Profile>("/api/auth/profile/", {}, token)
+    apiFetch<Profile>("/api/auth/profile/", {}, authToken)
       .then((profile) => {
         setFilters((prev) => ({
           ...prev,
@@ -170,28 +215,36 @@ export default function FoodsPage() {
             ? String(profile.irritability_level)
             : "",
         }));
+        setProfileAllergens(profile.allergens || []);
+        setProfileFilterAllergens(!!profile.filter_allergens);
         setPage(1);
+        setHasSearched(true);
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Failed to load profile");
+        setError(err instanceof Error ? err.message : "Impossible de charger le profil");
         setApplyProfile(false);
       });
-  }, [applyProfile]);
+  }, [applyProfile, authToken]);
 
   const onToggle = (key: keyof typeof DEFAULT_FILTERS) => {
     setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
     setPage(1);
+    setHasSearched(true);
   };
 
   const onChange = (key: keyof typeof DEFAULT_FILTERS, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
     setPage(1);
+    setHasSearched(true);
   };
 
   const resetFilters = () => {
     setFilters(DEFAULT_FILTERS);
     setApplyProfile(false);
     setPage(1);
+    setProfileAllergens([]);
+    setProfileFilterAllergens(false);
+    setHasSearched(false);
   };
 
   useEffect(() => {
@@ -217,29 +270,29 @@ export default function FoodsPage() {
   return (
     <section>
       <div className="hero-card">
-        <h1 className="section-title">Foods explorer</h1>
+        <h1 className="section-title">Explorateur d'aliments</h1>
         <p className="notice">
-          Start with a keyword, then tighten the nutrition and restriction
-          filters.
+          Commencez par un mot-clé, puis affinez les filtres nutritionnels et de
+          restrictions.
         </p>
         <div className="divider" />
         <div className="form">
-          <label className="label">Search</label>
+          <label className="label">Recherche</label>
           <input
             className="input"
             value={filters.search}
             onChange={(event) => onChange("search", event.target.value)}
-            placeholder="Try haricot, tomate, riz..."
+            placeholder="Essayez haricot, tomate, riz..."
           />
           <label className="label">
-            Brand
-            {brandLoading ? <span className="notice">Loading...</span> : null}
+            Marque
+            {brandLoading ? <span className="notice">Chargement...</span> : null}
           </label>
           <input
             className="input"
             value={filters.brand}
             onChange={(event) => onChange("brand", event.target.value)}
-            placeholder="Start typing a brand..."
+            placeholder="Commencez à taper une marque..."
             list="brand-suggestions"
           />
           <datalist id="brand-suggestions">
@@ -253,12 +306,12 @@ export default function FoodsPage() {
             value={filters.source}
             onChange={(event) => onChange("source", event.target.value)}
           >
-            <option value="">All</option>
+            <option value="">Toutes</option>
             <option value="ciqual">Ciqual</option>
             <option value="openfoodfacts">Open Food Facts</option>
-            <option value="manual">Manual</option>
+            <option value="manual">Manuel</option>
           </select>
-          <label className="label">Sort</label>
+          <label className="label">Tri</label>
           <select
             className="input"
             value={ordering}
@@ -267,14 +320,14 @@ export default function FoodsPage() {
               setPage(1);
             }}
           >
-            <option value="name">Name A → Z</option>
-            <option value="-name">Name Z → A</option>
+            <option value="name">Nom A → Z</option>
+            <option value="-name">Nom Z → A</option>
             <option value="-kcal_100g">Kcal ↓</option>
             <option value="kcal_100g">Kcal ↑</option>
           </select>
           <div className="grid">
             <div>
-              <label className="label">Max kcal / 100 g</label>
+              <label className="label">Kcal max / 100 g</label>
               <input
                 className="input"
                 type="number"
@@ -283,7 +336,7 @@ export default function FoodsPage() {
               />
             </div>
             <div>
-              <label className="label">Min protein / 100 g</label>
+              <label className="label">Protéines min / 100 g</label>
               <input
                 className="input"
                 type="number"
@@ -292,7 +345,7 @@ export default function FoodsPage() {
               />
             </div>
             <div>
-              <label className="label">Max fat / 100 g</label>
+              <label className="label">Lipides max / 100 g</label>
               <input
                 className="input"
                 type="number"
@@ -301,7 +354,7 @@ export default function FoodsPage() {
               />
             </div>
             <div>
-              <label className="label">Max irritability (0-3)</label>
+              <label className="label">Irritabilité max (0-3)</label>
               <input
                 className="input"
                 type="number"
@@ -323,7 +376,7 @@ export default function FoodsPage() {
                     onChange={() => onToggle(key)}
                     disabled={applyProfile}
                   />
-                  {" "}{key.replace("_", " ")}
+                  {" "}{RESTRICTION_LABELS[key]}
                 </label>
               )
             )}
@@ -334,13 +387,13 @@ export default function FoodsPage() {
               checked={applyProfile}
               onChange={() => setApplyProfile((prev) => !prev)}
             />
-            {" "}Correspond au profil
+            {" "}Appliquer mon profil
           </label>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <button className="button" type="button" onClick={resetFilters}>
-              Reset filters
+              Réinitialiser les filtres
             </button>
-            <span className="notice">Results update automatically.</span>
+            <span className="notice">Les résultats se mettent à jour automatiquement.</span>
           </div>
         </div>
       </div>
@@ -348,16 +401,22 @@ export default function FoodsPage() {
       <div className="foods-section">
         <div className="foods-toolbar">
           <div>
-            <div className="section-title">Results</div>
-            <p className="notice">{count} items</p>
+            <div className="section-title">Résultats</div>
+            <p className="notice">{count} éléments</p>
           </div>
           <div className="notice">Page {page}</div>
         </div>
-      {loading ? <p className="notice">Loading...</p> : null}
+      {loading ? <p className="notice">Chargement...</p> : null}
       {error ? <p className="notice">{error}</p> : null}
+      {!hasSearched && !loading && !error ? (
+        <p className="notice">
+          Lancez une recherche ou appliquez des filtres pour afficher des
+          aliments.
+        </p>
+      ) : null}
 
         <div className="foods-list">
-          {items.map((item) => {
+          {hasSearched ? items.map((item) => {
             const macros = [
               { label: "kcal", value: item.kcal_100g, className: "macro-kcal" },
               { label: "P", value: item.protein_g_100g, className: "macro-protein" },
@@ -369,6 +428,10 @@ export default function FoodsPage() {
             });
 
             const sourceLabel = SOURCE_LABELS[item.source] ?? item.source;
+            const allergenMatches =
+              authToken && profileAllergens.length > 0
+                ? detectAllergens(item, profileAllergens)
+                : [];
 
             return (
               <div
@@ -395,12 +458,27 @@ export default function FoodsPage() {
                     <div className="food-brand">{item.brand}</div>
                   ) : null}
                   <div className="food-tags">
-                    {item.vegan && <span className="tag">vegan</span>}
-                    {item.vegetarian && <span className="tag">vegetarian</span>}
-                    {item.pescetarian && <span className="tag">pescetarian</span>}
-                    {item.gluten_free && <span className="tag">gluten-free</span>}
-                    {item.lactose_free && <span className="tag">lactose-free</span>}
+                    {item.vegan && <span className="tag">{RESTRICTION_LABELS.vegan}</span>}
+                    {item.vegetarian && (
+                      <span className="tag">{RESTRICTION_LABELS.vegetarian}</span>
+                    )}
+                    {item.pescetarian && (
+                      <span className="tag">{RESTRICTION_LABELS.pescetarian}</span>
+                    )}
+                    {item.gluten_free && (
+                      <span className="tag">{RESTRICTION_LABELS.gluten_free}</span>
+                    )}
+                    {item.lactose_free && (
+                      <span className="tag">{RESTRICTION_LABELS.lactose_free}</span>
+                    )}
                   </div>
+                  {allergenMatches.length > 0 ? (
+                    <div className="allergen-warning">
+                      <span className="tag tag-warning">
+                        Allergènes : {allergenMatches.join(", ")}
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
                 {macros.length > 0 ? (
                   <div className="macro-stack">
@@ -416,7 +494,7 @@ export default function FoodsPage() {
                 ) : null}
               </div>
             );
-          })}
+          }) : null}
         </div>
       </div>
 
@@ -431,14 +509,14 @@ export default function FoodsPage() {
                 ) : null}
               </div>
               <button className="modal-close" onClick={() => setSelectedItem(null)}>
-                Close
+                Fermer
               </button>
             </div>
 
             <div className="modal-body">
               <div className="modal-grid">
                 <div className="modal-section">
-                  <div className="section-title">Overview</div>
+                  <div className="section-title">Aperçu</div>
                   <div className="detail">
                     <span className="detail-label">Source</span>
                     <span className="detail-value">
@@ -446,15 +524,15 @@ export default function FoodsPage() {
                     </span>
                   </div>
                   <div className="detail">
-                    <span className="detail-label">Barcode</span>
+                    <span className="detail-label">Code-barres</span>
                     <span className="detail-value">{selectedItem.barcode ?? "—"}</span>
                   </div>
                   <div className="detail">
-                    <span className="detail-label">Quantity</span>
+                    <span className="detail-label">Quantité</span>
                     <span className="detail-value">{selectedItem.quantity ?? "—"}</span>
                   </div>
                   <div className="detail">
-                    <span className="detail-label">Nutrition per</span>
+                    <span className="detail-label">Nutrition pour</span>
                     <span className="detail-value">
                       {selectedItem.nutrition_per ?? "—"}
                     </span>
@@ -462,18 +540,20 @@ export default function FoodsPage() {
                   <div className="detail-column">
                     <span className="detail-label">Restrictions</span>
                     <div className="food-tags">
-                      {selectedItem.vegan && <span className="tag">vegan</span>}
+                      {selectedItem.vegan && (
+                        <span className="tag">{RESTRICTION_LABELS.vegan}</span>
+                      )}
                       {selectedItem.vegetarian && (
-                        <span className="tag">vegetarian</span>
+                        <span className="tag">{RESTRICTION_LABELS.vegetarian}</span>
                       )}
                       {selectedItem.pescetarian && (
-                        <span className="tag">pescetarian</span>
+                        <span className="tag">{RESTRICTION_LABELS.pescetarian}</span>
                       )}
                       {selectedItem.gluten_free && (
-                        <span className="tag">gluten-free</span>
+                        <span className="tag">{RESTRICTION_LABELS.gluten_free}</span>
                       )}
                       {selectedItem.lactose_free && (
-                        <span className="tag">lactose-free</span>
+                        <span className="tag">{RESTRICTION_LABELS.lactose_free}</span>
                       )}
                       {!selectedItem.vegan &&
                         !selectedItem.vegetarian &&
@@ -493,33 +573,33 @@ export default function FoodsPage() {
                     <span className="detail-value">{selectedItem.kcal_100g ?? "—"}</span>
                   </div>
                   <div className="detail">
-                    <span className="detail-label">Protein</span>
+                    <span className="detail-label">Protéines</span>
                     <span className="detail-value">{selectedItem.protein_g_100g ?? "—"}</span>
                   </div>
                   <div className="detail">
-                    <span className="detail-label">Carbs</span>
+                    <span className="detail-label">Glucides</span>
                     <span className="detail-value">{selectedItem.carbs_g_100g ?? "—"}</span>
                   </div>
                   <div className="detail">
-                    <span className="detail-label">Fat</span>
+                    <span className="detail-label">Lipides</span>
                     <span className="detail-value">{selectedItem.fat_g_100g ?? "—"}</span>
                   </div>
                   <div className="detail">
-                    <span className="detail-label">Sugars</span>
+                    <span className="detail-label">Sucres</span>
                     <span className="detail-value">{selectedItem.sugars_g_100g ?? "—"}</span>
                   </div>
                   <div className="detail">
-                    <span className="detail-label">Fiber</span>
+                    <span className="detail-label">Fibres</span>
                     <span className="detail-value">{selectedItem.fiber_g_100g ?? "—"}</span>
                   </div>
                   <div className="detail">
-                    <span className="detail-label">Saturated fat</span>
+                    <span className="detail-label">Graisses saturées</span>
                     <span className="detail-value">
                       {selectedItem.saturated_fat_g_100g ?? "—"}
                     </span>
                   </div>
                   <div className="detail">
-                    <span className="detail-label">Salt</span>
+                    <span className="detail-label">Sel</span>
                     <span className="detail-value">{selectedItem.salt_g_100g ?? "—"}</span>
                   </div>
                 </div>
@@ -545,13 +625,13 @@ export default function FoodsPage() {
                 </div>
 
                 <div className="modal-section">
-                  <div className="section-title">Tags</div>
+                  <div className="section-title">Étiquettes</div>
                   <div className="detail">
-                    <span className="detail-label">Categories</span>
+                    <span className="detail-label">Catégories</span>
                     <span className="detail-value">{formatList(selectedItem.categories_tags)}</span>
                   </div>
                   <div className="detail">
-                    <span className="detail-label">Allergens</span>
+                    <span className="detail-label">Allergènes</span>
                     <span className="detail-value">{formatList(selectedItem.allergens_tags)}</span>
                   </div>
                   <div className="detail">
@@ -561,7 +641,7 @@ export default function FoodsPage() {
                 </div>
 
                 <div className="modal-section full-width">
-                  <div className="section-title">Ingredients</div>
+                  <div className="section-title">Ingrédients</div>
                   <div className="detail-column">
                     <span className="detail-label">FR</span>
                     <span className="detail-value">
@@ -569,13 +649,13 @@ export default function FoodsPage() {
                     </span>
                   </div>
                   <div className="detail-column">
-                    <span className="detail-label">Raw</span>
+                    <span className="detail-label">Brut</span>
                     <span className="detail-value">{selectedItem.ingredients_text || "—"}</span>
                   </div>
                 </div>
 
                 <div className="modal-section full-width">
-                  <div className="section-title">Raw data</div>
+                  <div className="section-title">Données brutes</div>
                   <pre className="raw-json">
                     {JSON.stringify(selectedItem, null, 2)}
                   </pre>
@@ -590,16 +670,16 @@ export default function FoodsPage() {
         <button
           className="button secondary"
           onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={page === 1}
+          disabled={page === 1 || !hasSearched}
         >
-          Previous
+          Précédent
         </button>
         <button
           className="button"
           onClick={() => setPage((p) => p + 1)}
-          disabled={items.length === 0}
+          disabled={items.length === 0 || !hasSearched}
         >
-          Next
+          Suivant
         </button>
         <span className="notice">Page {page}</span>
       </div>

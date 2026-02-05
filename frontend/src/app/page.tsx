@@ -2,36 +2,36 @@
   return (
     <section className="hero">
       <div className="hero-card">
-        <div className="badge">CIQUAL-ready</div>
-        <h1 className="hero-title">Nutrition data, personalized for you.</h1>
+        <div className="badge">Compatible CIQUAL</div>
+        <h1 className="hero-title">Des données nutritionnelles, personnalisées pour vous.</h1>
         <p className="hero-subtitle">
-          Nutribuddy connects a powerful food database with your dietary
-          preferences. Filter quickly, stay consistent, and keep your profile in
-          sync across devices.
+          Nutribuddy relie une base alimentaire puissante à vos préférences
+          alimentaires. Filtrez vite, restez cohérent, et gardez votre profil
+          synchronisé sur tous vos appareils.
         </p>
         <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
           <a className="button" href="/foods">
-            Explore foods
+            Explorer les aliments
           </a>
           <a className="button secondary" href="/profile">
-            Set preferences
+            Définir mes préférences
           </a>
         </div>
       </div>
       <div className="hero-card">
-        <h2 className="section-title">Why it helps</h2>
+        <h2 className="section-title">Pourquoi c'est utile</h2>
         <div className="grid">
           <div className="card">
-            <strong>Smart filters</strong>
-            <p className="notice">Calories, macros, and restrictions in seconds.</p>
+            <strong>Filtres intelligents</strong>
+            <p className="notice">Calories, macros et restrictions en quelques secondes.</p>
           </div>
           <div className="card">
-            <strong>Profile-aware</strong>
-            <p className="notice">Save your dietary rules once.</p>
+            <strong>Profil pris en compte</strong>
+            <p className="notice">Enregistrez vos règles alimentaires une seule fois.</p>
           </div>
           <div className="card">
-            <strong>Fast lookup</strong>
-            <p className="notice">Built on CIQUAL data with clean API access.</p>
+            <strong>Recherche rapide</strong>
+            <p className="notice">Basé sur les données CIQUAL avec une API claire.</p>
           </div>
         </div>
       </div>

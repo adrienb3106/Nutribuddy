@@ -118,6 +118,15 @@ docker compose exec web python manage.py tag_compatibilities --only-if-default
 docker compose exec web python manage.py tag_openfoodfacts_compatibilities --only-if-default
 ```
 
+**Infer Missing Allergens (optional)**
+If `allergens_tags` is empty, you can infer allergens from the product name or ingredients:
+```bash
+docker compose exec web python manage.py infer_allergens --dry-run
+```
+```bash
+docker compose exec web python manage.py infer_allergens --log-every 10000
+```
+
 **Backend URLs**
 - API root: `http://localhost:8000/api/`
 - Admin: `http://localhost:8000/admin/`
@@ -146,6 +155,28 @@ Filters supported:
 - `kcal_min` and `kcal_max`
 - `protein_min`, `protein_max`, `carbs_min`, `carbs_max`, `fat_min`, `fat_max`
 - `barcode` exact match
+- `allergens` + `exclude_allergens` to filter out items that contain selected allergens
+
+Allergen filtering example:
+```bash
+curl "http://localhost:8000/api/foods/?allergens=peanuts,milk&exclude_allergens=true"
+```
+
+Allergen keys:
+- `gluten`
+- `milk`
+- `eggs`
+- `fish`
+- `crustaceans`
+- `molluscs`
+- `peanuts`
+- `nuts`
+- `soy`
+- `celery`
+- `mustard`
+- `sesame`
+- `lupin`
+- `sulphites`
 
 **Auth (JWT)**
 Register:
@@ -178,7 +209,7 @@ curl "http://localhost:8000/api/auth/profile/" \
 curl -X PATCH "http://localhost:8000/api/auth/profile/" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <access_token>" \
-  -d '{"vegan":true,"gluten_free":true,"lactose_free":true,"irritability_level":1}'
+  -d '{"vegan":true,"gluten_free":true,"lactose_free":true,"irritability_level":1,"allergens":["peanuts","milk"],"filter_allergens":true}'
 ```
 
 **Frontend (Next.js)**
@@ -188,6 +219,8 @@ docker compose up --build
 ```
 Frontend URL: `http://localhost:3000/`
 Scan page (mobile camera): `http://localhost:3000/scan`
+
+Note: the Foods list shows allergen warnings when your profile is applied, and can optionally filter them out.
 
 Local dev (without Docker):
 ```bash
@@ -267,7 +300,9 @@ docker compose exec web python manage.py test foods
 - CIQUAL import and Open Food Facts minimal import
 - Compatibility tagging for CIQUAL and OFF
 - JWT auth endpoints and dietary profile
+- Allergy profile + allergen filtering/warnings
 - Automated backups
 - Basic API tests
+- Mobile barcode scan page (frontend)
 
 Next steps are documented in `context.md`.

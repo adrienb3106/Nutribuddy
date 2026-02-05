@@ -1,6 +1,7 @@
 from django_filters import rest_framework as filters
 
 from .models import FoodItem
+from .allergens import ALLERGEN_RULES, allergen_query
 
 
 class FoodItemFilter(filters.FilterSet):
@@ -20,6 +21,7 @@ class FoodItemFilter(filters.FilterSet):
     irritability_max = filters.NumberFilter(field_name="irritability_level", lookup_expr="lte")
     brand = filters.CharFilter(field_name="brand", lookup_expr="istartswith")
     barcode = filters.CharFilter(field_name="barcode", lookup_expr="exact")
+    allergens = filters.CharFilter(method="filter_allergens")
 
     class Meta:
         model = FoodItem
@@ -34,3 +36,30 @@ class FoodItemFilter(filters.FilterSet):
             "lactose_free",
             "irritability_level",
         ]
+
+    def filter_allergens(self, queryset, name, value):
+        allergens = [part.strip().lower() for part in value.split(",") if part.strip()]
+        if not allergens:
+            return queryset
+
+        exclude_flag = str(self.data.get("exclude_allergens", "")).lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        if not exclude_flag:
+            return queryset
+
+        combined = None
+        for key in allergens:
+            rule = ALLERGEN_RULES.get(key)
+            if not rule:
+                continue
+            condition = allergen_query(rule)
+            combined = condition if combined is None else combined | condition
+
+        if combined is None:
+            return queryset
+
+        return queryset.exclude(combined)
