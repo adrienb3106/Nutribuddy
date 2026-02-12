@@ -86,7 +86,9 @@ const SOURCE_LABELS: Record<string, string> = {
   manual: "Manuel",
 };
 
-const RESTRICTION_LABELS = {
+type RestrictionKey = "vegan" | "vegetarian" | "pescetarian" | "gluten_free" | "lactose_free";
+
+const RESTRICTION_LABELS: Record<RestrictionKey, string> = {
   vegan: "Vegan",
   vegetarian: "Vegetarien",
   pescetarian: "Pescetarien",
@@ -138,11 +140,11 @@ export default function FoodsPage() {
       params.set("exclude_allergens", "true");
       params.set("allergens", profileAllergens.join(","));
     }
-    ("vegan vegetarian pescetarian gluten_free lactose_free" as const)
-      .split(" ")
-      .forEach((key) => {
+    (["vegan", "vegetarian", "pescetarian", "gluten_free", "lactose_free"] as const).forEach(
+      (key) => {
         if (filters[key]) params.set(key, "true");
-      });
+      }
+    );
     return params.toString();
   }, [applyProfile, filters, page, ordering, profileAllergens, profileFilterAllergens]);
 

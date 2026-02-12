@@ -48,10 +48,25 @@ function Require-Env {
     }
 }
 
-if (Test-Path ".env") {
+$ComposeEnvFile = $null
+if (Test-Path ".env.prod") {
+    Load-EnvFile ".env.prod"
+    $ComposeEnvFile = ".env.prod"
+} elseif (Test-Path ".env") {
     Load-EnvFile ".env"
+    $ComposeEnvFile = ".env"
 } elseif (Test-Path ".env.example") {
     Load-EnvFile ".env.example"
+    $ComposeEnvFile = ".env.example"
+}
+
+function Invoke-Compose {
+    param([Parameter(ValueFromRemainingArguments = $true)] $Args)
+    if ($ComposeEnvFile) {
+        docker compose --env-file $ComposeEnvFile @Args
+    } else {
+        docker compose @Args
+    }
 }
 
 Require-Env "POSTGRES_USER"
@@ -65,12 +80,12 @@ if (-not (Test-Path $Input)) {
 }
 
 Write-Step "Checking database readiness"
-docker compose exec -T db pg_isready -U $env:POSTGRES_USER -d $env:POSTGRES_DB | Out-Null
+Invoke-Compose exec -T db pg_isready -U $env:POSTGRES_USER -d $env:POSTGRES_DB | Out-Null
 if ($LASTEXITCODE -ne 0) {
     throw "Postgres is not ready."
 }
 
-$containerId = (docker compose ps -q db).Trim()
+$containerId = (Invoke-Compose ps -q db).Trim()
 if (-not $containerId) {
     throw "Could not find db container id."
 }
@@ -93,7 +108,7 @@ if ($ext -eq "sql") {
         Write-Host "Warning: -Clean is ignored for .sql dumps (use a clean database)."
     }
     Write-Step "Restoring plain SQL dump"
-    docker compose exec -T db psql -U $env:POSTGRES_USER -d $env:POSTGRES_DB -v ON_ERROR_STOP=1 -f $tmpPath
+    Invoke-Compose exec -T db psql -U $env:POSTGRES_USER -d $env:POSTGRES_DB -v ON_ERROR_STOP=1 -f $tmpPath
     if ($LASTEXITCODE -ne 0) {
         throw "Restore failed."
     }
@@ -110,12 +125,12 @@ if ($ext -eq "sql") {
         $restoreArgs += @("--clean", "--if-exists")
     }
     $restoreArgs += $tmpPath
-    docker compose exec -T db @restoreArgs
+    Invoke-Compose exec -T db @restoreArgs
     if ($LASTEXITCODE -ne 0) {
         throw "Restore failed."
     }
 }
 
-docker compose exec -T db rm -f $tmpPath | Out-Null
+Invoke-Compose exec -T db rm -f $tmpPath | Out-Null
 
 Write-Step "Done"

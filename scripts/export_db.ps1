@@ -49,10 +49,33 @@ function Require-Env {
     }
 }
 
-if (Test-Path ".env") {
+$ComposeEnvFile = $null
+$ComposeFile = $env:COMPOSE_FILE
+if (Test-Path ".env.prod") {
+    Load-EnvFile ".env.prod"
+    $ComposeEnvFile = ".env.prod"
+    if (-not $ComposeFile -and (Test-Path "docker-compose.prod.yml")) {
+        $ComposeFile = "docker-compose.prod.yml"
+    }
+} elseif (Test-Path ".env") {
     Load-EnvFile ".env"
+    $ComposeEnvFile = ".env"
 } elseif (Test-Path ".env.example") {
     Load-EnvFile ".env.example"
+    $ComposeEnvFile = ".env.example"
+}
+
+function Invoke-Compose {
+    param([Parameter(ValueFromRemainingArguments = $true)] $Args)
+    if ($ComposeEnvFile -and $ComposeFile) {
+        docker compose --env-file $ComposeEnvFile -f $ComposeFile @Args
+    } elseif ($ComposeEnvFile) {
+        docker compose --env-file $ComposeEnvFile @Args
+    } elseif ($ComposeFile) {
+        docker compose -f $ComposeFile @Args
+    } else {
+        docker compose @Args
+    }
 }
 
 Require-Env "POSTGRES_USER"
@@ -80,12 +103,17 @@ if ($Format -eq "custom" -and -not $Output.EndsWith(".dump")) {
 }
 
 Write-Step "Checking database readiness"
-docker compose exec -T db pg_isready -U $env:POSTGRES_USER -d $env:POSTGRES_DB | Out-Null
+$readyArgs = @(
+    "pg_isready",
+    "-U", $env:POSTGRES_USER,
+    "-d", $env:POSTGRES_DB
+)
+Invoke-Compose exec -T db @readyArgs | Out-Null
 if ($LASTEXITCODE -ne 0) {
     throw "Postgres is not ready."
 }
 
-$containerId = (docker compose ps -q db).Trim()
+$containerId = (Invoke-Compose ps -q db).Trim()
 if (-not $containerId) {
     throw "Could not find db container id."
 }
@@ -108,7 +136,7 @@ if ($Format -eq "plain") {
 }
 $dumpArgs += @("-f", $tmpPath)
 
-docker compose exec -T db @dumpArgs
+Invoke-Compose exec -T db @dumpArgs
 if ($LASTEXITCODE -ne 0) {
     throw "Export failed."
 }
@@ -118,7 +146,7 @@ if ($LASTEXITCODE -ne 0) {
     throw "Failed to copy dump to host."
 }
 
-docker compose exec -T db rm -f $tmpPath | Out-Null
+Invoke-Compose exec -T db rm -f $tmpPath | Out-Null
 
 Write-Step "Done"
 Write-Host "Dump file: $Output"
