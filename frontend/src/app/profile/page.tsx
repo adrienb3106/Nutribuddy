@@ -90,7 +90,9 @@ const defaultProfile: Profile = {
   filter_allergens: false,
 };
 
-const RESTRICTION_LABELS: Record<keyof Omit<Profile, "irritability_level">, string> = {
+type RestrictionKey = "vegan" | "vegetarian" | "pescetarian" | "gluten_free" | "lactose_free";
+
+const RESTRICTION_LABELS: Record<RestrictionKey, string> = {
   vegan: "Vegan",
   vegetarian: "Vegetarien",
   pescetarian: "Pescetarien",

@@ -145,7 +145,9 @@ export default function ScanPage() {
       return;
     }
 
-    const reader = new BrowserMultiFormatReader(undefined, 300);
+    const reader = new BrowserMultiFormatReader(undefined, {
+      delayBetweenScanAttempts: 300,
+    });
     readerRef.current = reader;
     setStatus("scanning");
     setError(null);

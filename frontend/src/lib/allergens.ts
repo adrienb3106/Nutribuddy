@@ -196,6 +196,7 @@ const isNegated = (haystack: string, token: string) => {
 
 export function detectAllergens(
   item: {
+    name?: string | null;
     allergens_tags?: string[] | null;
     ingredients_text?: string | null;
     ingredients_text_fr?: string | null;
